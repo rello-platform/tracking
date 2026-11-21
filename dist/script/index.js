@@ -12,6 +12,15 @@
 import { createTransport, matchTemplate } from "./core.js";
 const PAGE_TYPES = "home feature pricing compare integrations about blog article contact legal signup listing portal app other".split(" ");
 const SLUG = /^[a-z0-9-]{1,64}$/;
+/** Every callback the script installs runs through this: tracking never throws into the page (GD-2739). */
+const safe = (f) => (...a) => {
+    try {
+        f(...a);
+    }
+    catch {
+        /* the page never knows */
+    }
+};
 (() => {
     try {
         const w = window;
@@ -51,16 +60,16 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
         let marks = {};
         let visibleMs = 0;
         let visibleSince = d.visibilityState === "visible" ? Date.now() : 0;
-        const view = () => {
+        const view = safe(() => {
             marks = {};
             const meta = d.querySelector('meta[name="rello:page-type"]')?.content || "";
             const e = { name: "page.view", pageType: PAGE_TYPES.includes(meta) ? meta : "other" };
             if (published && d.title)
                 e.title = d.title.slice(0, 120);
             t.push(withPath(e));
-        };
+        });
         // scroll.depth at 25/50/75/100 crossings
-        const onScroll = () => {
+        const onScroll = safe(() => {
             const h = d.documentElement.scrollHeight;
             if (!h)
                 return;
@@ -71,27 +80,29 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
                     t.push(withPath({ name: "scroll.depth", depth }));
                 }
             }
-        };
+        });
         // section.read: a [data-section] at least 50 % visible for at least 4 s, once per page
         const read = {};
         const waits = new Map();
         if ("IntersectionObserver" in w) {
-            const io = new IntersectionObserver((entries) => {
+            const io = new IntersectionObserver(safe((entries) => {
                 for (const en of entries) {
-                    const el = en.target;
+                    const el = en?.target;
+                    if (!el || !el.dataset)
+                        continue;
                     const id = el.dataset.section || "";
                     if (!SLUG.test(id) || read[id])
                         continue;
                     if (en.intersectionRatio >= 0.5) {
                         if (!waits.has(el)) {
-                            waits.set(el, w.setTimeout(() => {
+                            waits.set(el, w.setTimeout(safe(() => {
                                 read[id] = 1;
                                 const e = { name: "section.read", sectionId: id };
                                 const topic = el.dataset.topic || "";
                                 if (SLUG.test(topic))
                                     e.topic = topic;
                                 t.push(withPath(e));
-                            }, 4000));
+                            }), 4000));
                         }
                     }
                     else if (waits.has(el)) {
@@ -99,11 +110,11 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
                         waits.delete(el);
                     }
                 }
-            }, { threshold: [0, 0.5] });
+            }), { threshold: [0, 0.5] });
             d.querySelectorAll("[data-section]").forEach((el) => io.observe(el));
         }
         // cta.click and widget.use: attributes only, never a value or text
-        d.addEventListener("click", (ev) => {
+        d.addEventListener("click", safe((ev) => {
             const el = ev.target instanceof Element ? ev.target : null;
             const cta = el?.closest("[data-cta]");
             if (cta && SLUG.test(cta.dataset.cta || "")) {
@@ -118,16 +129,32 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
                 const act = wd.dataset.widgetAction || "";
                 t.push(withPath({ name: "widget.use", widgetId: wd.dataset.widget, action: ["change", "submit"].includes(act) ? act : "open" }));
             }
-        }, true);
-        // in-app route changes count as views
-        const push0 = history.pushState;
-        history.pushState = function (...args) {
-            push0.apply(this, args);
-            view();
+        }), true);
+        // In-app route changes count as views: every pushState, and a replaceState that changes the
+        // path. The native call runs first and OUTSIDE any catch, so an error it throws reaches the
+        // page's caller unchanged; only the tracking that follows is guarded (GD-2739).
+        let lastPath = location.pathname;
+        const onNav = safe((always) => {
+            const p = location.pathname;
+            if (always || p !== lastPath)
+                view();
+            lastPath = p;
+        });
+        const wrap = (k) => {
+            const native = history[k];
+            if (typeof native !== "function")
+                return;
+            history[k] = function (...args) {
+                const r = native.apply(this, args);
+                onNav(k === "pushState");
+                return r;
+            };
         };
-        w.addEventListener("popstate", view);
+        wrap("pushState");
+        wrap("replaceState");
+        w.addEventListener("popstate", () => onNav(true));
         w.addEventListener("scroll", onScroll, { passive: true });
-        d.addEventListener("visibilitychange", () => {
+        d.addEventListener("visibilitychange", safe(() => {
             if (d.visibilityState === "hidden") {
                 if (visibleSince)
                     visibleMs += Date.now() - visibleSince;
@@ -136,14 +163,14 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
             }
             else
                 visibleSince = Date.now();
-        });
-        w.addEventListener("pagehide", () => {
+        }));
+        w.addEventListener("pagehide", safe(() => {
             if (visibleSince)
                 visibleMs += Date.now() - visibleSince;
             visibleSince = 0;
             t.push(withPath({ name: "page.leave", activeMs: Math.min(Math.round(visibleMs), 3_600_000) }));
             t.flush(true);
-        });
+        }));
         view();
         t.retryParked();
     }

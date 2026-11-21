@@ -5,7 +5,7 @@ slice imports it: the Tracking Engine's edge and consumer, Rello, and each app's
 in-app sender.
 
 ```
-npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.0"
+npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.1"
 ```
 
 ## What is in it
@@ -17,7 +17,7 @@ npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.0"
 | `FEATURES[app]` | Registered `feature.used` keys. v0.1.0 registers none, so every `feature.used` is refused until an app registers its features in a reviewed release. |
 | `findUnboundedStrings`, `findNonStrictObjects` | Guards: the package test runs them over all 12 schemas and requires an empty list. |
 | `checkScriptSize`, `SCRIPT_GZIP_LIMIT_BYTES` | The page script must be ≤ 3,072 B minified + gzipped (level 9). |
-| `@rello-platform/tracking/redirect` | `redirectLocation(url)`: the pure `/t/c` 302. It removes only `rg` and `r`, keeps the rest of the query, and sends anything that is not a same-host path to `/`. |
+| `@rello-platform/tracking/redirect` | `redirectLocation(url)`: the pure `/t/c` 302. It removes only `rg` and `r` and keeps the rest of the query. A rejected destination goes to bare `/` (rule below). |
 | `@rello-platform/tracking/script` | The built page script (`dist/script/s.js`), served by the engine at `/t/s.v<major>.<minor>.js`. |
 
 Registry keys are the canonical app slugs from `@rello-platform/slugs`. Each registry
@@ -39,10 +39,42 @@ not the protection. Membership in a reviewed release is.
 ```
 
 It sends `page.view` at once, and a `cta.click` at once. Anything else goes 5 s after the
-oldest unsent event, at 20 events, or on hide (by `sendBeacon`). Foreground batches
-go by `fetch` with `keepalive` and stay in `localStorage` (`rt_q`) until a 2xx;
-failures are retried on the next page load at 1 s, 4 s and 16 s. It reads only
-`data-*` attributes, never a typed value, and nothing on the page waits for it.
+oldest unsent event, at 20 events, or on hide (by `sendBeacon`). It reads only `data-*`
+attributes (plus the path, the published page's title and page-type meta, and a CTA's
+destination host), never a typed value, and nothing on the page waits for it.
+
+**It never throws into the page (v0.1.1, GD-2739).** Every callback it installs is guarded,
+and `rt_q` is validated on every read: anything that is not a well-formed batch is dropped and
+counted, never trusted. It wraps `history.pushState` / `replaceState` (a `replaceState` counts as
+a view only when the path changes); the native call runs first and unguarded, so an error the
+browser throws there reaches the page's caller unchanged.
+
+**The protocol with the edge (`POST /t/e`, v0.1.1, GD-2740/2741).** A batch is
+`{ b, v, gpc?, d?, events }`: `b` a random batch id, `v` this browser's client visitor id (kept
+in `localStorage` `rt_v`), `d` the client's loss counts since its last report
+(`m` malformed rt_q entries, `r` events refused by the edge, `c` events dropped by the cap).
+A foreground batch stays in `rt_q` until the edge answers:
+
+| Answer | Means | The script |
+|---|---|---|
+| 204 | every event stored | drops the batch from `rt_q` |
+| 200 + `x-tracking-refused: n` | the valid events stored, `n` refused | drops it, counts `n` refused |
+| 400 / 413 / 422 | can never be stored (malformed, too large, every event invalid) | drops it, counts its events refused, never retries |
+| anything else (5xx, 403, 429, network) | not stored | keeps it, retries on the next page load at 1 s, 4 s, 16 s |
+
+A parked batch keeps its `b` and `v`, so a retry has the same identity at the edge whatever
+happened to cookies, the session or the date. `rt_q` is capped at 200 events and 51,200 bytes of
+UTF-8 (the stored JSON text), oldest out.
+
+## The `/t/c` rejection rule (v0.1.1, GD-2743)
+
+The destination is the path after `/t/c`, percent-decoded once. It is **rejected** when the
+decoded path contains `//` anywhere (leading or internal, written or `%2F`-encoded), a
+backslash, a control character or a scheme-shaped first segment, or when it can't be decoded.
+A rejected destination goes to **bare `/` with no query**. A URL outside `/t/c`, or one that
+can't be parsed, also goes to bare `/`. An accepted path is kept exactly as written, with every
+query parameter except `rg` and `r`. Dot segments are resolved by the URL parser before the
+check (`%2e%2e` included), so they can't climb out of `/t/c`.
 
 ## Build and release
 

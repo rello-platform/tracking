@@ -3,9 +3,17 @@
  * Queue, KV or Rello call is on its path, so the engine Worker, an origin fallback
  * route and an app with no zone route all give the same 302 from the same code.
  *
- * `/t/c/<path>?<query>&rg=…&r=…` → `/<path>?<query>`: only `rg` and `r` are removed,
- * every other query parameter is kept, and anything that is not a same-host path
- * goes to `/`, so an open redirect is impossible by construction.
+ * `/t/c/<path>?<query>&rg=…&r=…` → `/<path>?<query>`: only `rg` and `r` are removed and
+ * every other query parameter is kept, so an open redirect is impossible by construction.
+ *
+ * REJECTION RULE (GD-2743). The destination is the path after `/t/c`, percent-decoded once.
+ * It is rejected when the decoded path contains `//` anywhere (leading or internal, written
+ * or `%2F`-encoded), a backslash, a control character or a scheme-shaped first segment, or
+ * when it can't be decoded. A rejected destination goes to bare `/` with NO query: nothing
+ * from a malformed or hostile link is carried. A URL outside `/t/c`, or one that can't be
+ * parsed, also goes to bare `/`. An accepted path is kept exactly as written (still encoded).
+ * Dot segments never reach the check: the URL parser resolves them first (`%2e%2e` included),
+ * so `/t/c/../x` is outside `/t/c`.
  */
 export declare const REDIRECT_PREFIX = "/t/c";
 /** The Location for a `/t/c` request URL. Always a same-host path starting with a single "/". */
