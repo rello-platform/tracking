@@ -39,9 +39,26 @@ function registry(entries: Partial<Record<AppSlug, readonly string[]>>): Registr
  * Registered route templates. v0.1.0 registers Rello's lead screen (the plan's own
  * example) and Rello's two client-portal pages (§3.3 item 4). Each later app adds its
  * own in its S9 / S10 package release.
+ *
+ * S10 (Rello's public pages, Platform KA 1664) adds the three pages whose URL carries a
+ * token or a person's slug, so their tag can send the template instead (§3.2), and the
+ * portal's own dashboard page for the later portal unit.
+ *
+ * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
+ * return the FIRST template that matches. A static template therefore comes before any
+ * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can
+ * never match. tests/registry-rello-s10.test.ts checks every static template matches itself.
  */
 export const ROUTES: Registry = registry({
-  [RELLO]: ["/leads/[id]", "/c/[token]", "/d/[token]"],
+  [RELLO]: [
+    "/leads/[id]",
+    "/c/dashboard",
+    "/c/[token]",
+    "/d/[token]",
+    "/rate-check/[slug]",
+    "/growth/interest/[token]",
+    "/signup-link/[token]",
+  ],
 });
 
 /**

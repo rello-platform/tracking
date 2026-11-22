@@ -5,7 +5,7 @@ slice imports it: the Tracking Engine's edge and consumer, Rello, and each app's
 in-app sender.
 
 ```
-npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.1"
+npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.2"
 ```
 
 ## What is in it
@@ -29,6 +29,11 @@ Add it to `src/registry.ts`, bump the minor version, rebuild, commit `dist/`, ta
 A route template may use only lowercase static words (no digits) and
 `[camelCaseParam]` segments; the grammar test refuses a concrete value. The grammar is
 not the protection. Membership in a reviewed release is.
+
+Both matchers return the **first** template that matches, so a static template is listed
+before a `[param]` template of the same shape (`/c/dashboard` before `/c/[token]`); a test
+checks every static template matches itself. v0.1.2 registers Rello's S10 public pages:
+`/rate-check/[slug]`, `/growth/interest/[token]`, `/signup-link/[token]` and `/c/dashboard`.
 
 ## The page script
 
