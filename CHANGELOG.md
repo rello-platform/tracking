@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 — 2026-11-23 (S9 part 3, Platform KA prompt 1747; #3)
+
+Rello's registry entries:
+
+- `FEATURES.rello` registers eleven keys, one per signed-in server action Growth reads: `leads.create`,
+  `leads.import`, `leads.export`, `leads.stage-change`, `leads.note-create`, `tasks.create`,
+  `campaigns.create`, `campaigns.launch`, `journeys.enroll`, `nurture.reengage-enroll`, `milo.chat`. Every
+  other app still registers none, so its `feature.used` is still refused.
+- `ROUTES.rello` adds nine in-app screen templates, sent as `screen.opened` by Rello's server pages:
+  `/leads`, `/campaigns`, `/campaigns/[id]`, `/conversations`, `/calendar`, `/team`, `/apps`, `/broker`,
+  `/realtor-prospects/[id]`. The seven earlier templates are unchanged and keep their order.
+- Registry only: `dist/script/s.js` is unchanged (it reads templates from the tag's `data-routes`).
+- The `src/server.ts` header now describes the GD-3047 200 rule (comment only).
+
 ## v0.2.0 — 2026-11-23 (S9 part 1, Platform KA prompt 1740)
 
 - **`@rello-platform/tracking/server`: `createTracker()` and `track()`**, the in-app server sender to plan

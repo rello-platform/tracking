@@ -12,8 +12,8 @@ import {
 } from "../src/index";
 import { HOME_SCOUT, RELLO, VALID, common } from "./fixtures";
 
-// A fixture feature registry, so an ACCEPTED feature.used can be exercised: v0.1.0
-// registers no features (S9/S11 add them), so the package's own FEATURES refuses all.
+// A fixture feature registry, so an ACCEPTED feature.used can be exercised without depending on
+// what a release registers (v0.1.x registered none; S9 part 3 registers Rello's, not this key).
 const featuresFixture = Object.fromEntries(APP_SLUGS.map((a) => [a, a === RELLO ? ["upsell.leads-tab.viewed"] : []])) as {
   readonly [A in AppSlug]: readonly string[];
 };
@@ -69,7 +69,7 @@ describe("screen.opened: route ∈ ROUTES[app] (§3.1 Rev 2, GD-2689)", () => {
 });
 
 describe("feature.used: feature ∈ FEATURES[app]", () => {
-  test("refused when the app registers nothing (v0.1.0 default)", () => {
+  test("refused when the app does not register that feature", () => {
     expect(EVENT_SCHEMAS["feature.used"].safeParse(VALID["feature.used"]).success).toBe(false);
   });
   test("accepted only when registered; count bounded 1–1000", () => {

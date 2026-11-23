@@ -52,15 +52,45 @@ export const ROUTES = registry({
         "/rate-check/[slug]",
         "/growth/interest/[token]",
         "/signup-link/[token]",
+        // S9 part 3 (Platform KA 1747): Rello's in-app screens, sent as `screen.opened` by the
+        // server page itself, which already holds the signed-in session (no extra session read).
+        // Only server-rendered pages are here; a "use client" page has no server render to send from.
+        "/leads",
+        "/campaigns",
+        "/campaigns/[id]",
+        "/conversations",
+        "/calendar",
+        "/team",
+        "/apps",
+        "/broker",
+        "/realtor-prospects/[id]",
     ],
 });
 /**
- * Registered features. v0.1.0 registers none: S9 adds each app's features, and S11
- * adds `upsell.<seam>.<event>` keys, each in a reviewed release. Until then every
- * `feature.used` is refused, which is the intended state for a vocabulary nobody has
- * reviewed yet.
+ * Registered features. v0.1.x registered none. S9 adds each app's features, and S11
+ * adds `upsell.<seam>.<event>` keys, each in a reviewed release. An app with nothing
+ * registered has every `feature.used` refused, which is the intended state for a
+ * vocabulary nobody has reviewed yet.
+ *
+ * S9 part 3 (Platform KA 1747) registers Rello's first eleven: one per signed-in server
+ * action Growth reads, each sent once after that action's own write succeeds. A key names
+ * the action only: no lead, client, campaign or user value can be a feature.
  */
-export const FEATURES = registry({});
+export const FEATURES = registry({
+    [RELLO]: [
+        "leads.create",
+        "leads.import",
+        "leads.export",
+        "leads.stage-change",
+        "leads.note-create",
+        "tasks.create",
+        "campaigns.create",
+        "campaigns.launch",
+        "journeys.enroll",
+        "nurture.reengage-enroll",
+        "milo.chat",
+    ],
+});
 /** Match a pathname against templates; each `[param]` matches exactly one segment. */
 export function matchRoute(pathname, templates) {
     const parts = splitPath(pathname);
