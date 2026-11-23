@@ -8,6 +8,9 @@
  * - `data-routes`: on spoke_public / in_app, the app's registered route templates,
  *   space-separated. The path sent is the matched template, never the URL; with no
  *   match no path is sent (§3.2).
+ *
+ * On spoke_public the script sends only `page.view` (on load and on an in-page route
+ * change): no scroll, section, click or pagehide listener is installed (§3.3 item 4).
  */
 import { createTransport, matchTemplate } from "./core.js";
 const PAGE_TYPES = "home feature pricing compare integrations about blog article contact legal signup listing portal app other".split(" ");
@@ -30,6 +33,9 @@ const safe = (f) => (...a) => {
         const templated = surface === "spoke_public" || surface === "in_app";
         const routes = (tag?.dataset.routes || "").split(" ").filter(Boolean);
         const published = surface === "marketing" || surface === "tenant_site";
+        // Plan §3.3 item 4 (GD-3035): pages a tenant's clients use send page.view and nothing else, so on
+        // spoke_public none of the scroll / section / click / pagehide listeners below is installed.
+        const full = surface !== "spoke_public";
         let st;
         try {
             st = w.localStorage;
@@ -84,7 +90,7 @@ const safe = (f) => (...a) => {
         // section.read: a [data-section] at least 50 % visible for at least 4 s, once per page
         const read = {};
         const waits = new Map();
-        if ("IntersectionObserver" in w) {
+        if (full && "IntersectionObserver" in w) {
             const io = new IntersectionObserver(safe((entries) => {
                 for (const en of entries) {
                     const el = en?.target;
@@ -114,22 +120,23 @@ const safe = (f) => (...a) => {
             d.querySelectorAll("[data-section]").forEach((el) => io.observe(el));
         }
         // cta.click and widget.use: attributes only, never a value or text
-        d.addEventListener("click", safe((ev) => {
-            const el = ev.target instanceof Element ? ev.target : null;
-            const cta = el?.closest("[data-cta]");
-            if (cta && SLUG.test(cta.dataset.cta || "")) {
-                const e = { name: "cta.click", ctaId: cta.dataset.cta };
-                const a = cta.closest("a");
-                if (a && a.host && a.host !== location.host)
-                    e.destHost = a.hostname.toLowerCase();
-                t.push(withPath(e));
-            }
-            const wd = el?.closest("[data-widget]");
-            if (wd && SLUG.test(wd.dataset.widget || "")) {
-                const act = wd.dataset.widgetAction || "";
-                t.push(withPath({ name: "widget.use", widgetId: wd.dataset.widget, action: ["change", "submit"].includes(act) ? act : "open" }));
-            }
-        }), true);
+        if (full)
+            d.addEventListener("click", safe((ev) => {
+                const el = ev.target instanceof Element ? ev.target : null;
+                const cta = el?.closest("[data-cta]");
+                if (cta && SLUG.test(cta.dataset.cta || "")) {
+                    const e = { name: "cta.click", ctaId: cta.dataset.cta };
+                    const a = cta.closest("a");
+                    if (a && a.host && a.host !== location.host)
+                        e.destHost = a.hostname.toLowerCase();
+                    t.push(withPath(e));
+                }
+                const wd = el?.closest("[data-widget]");
+                if (wd && SLUG.test(wd.dataset.widget || "")) {
+                    const act = wd.dataset.widgetAction || "";
+                    t.push(withPath({ name: "widget.use", widgetId: wd.dataset.widget, action: ["change", "submit"].includes(act) ? act : "open" }));
+                }
+            }), true);
         // In-app route changes count as views: every pushState, and a replaceState that changes the
         // path. The native call runs first and OUTSIDE any catch, so an error it throws reaches the
         // page's caller unchanged; only the tracking that follows is guarded (GD-2739).
@@ -153,7 +160,8 @@ const safe = (f) => (...a) => {
         wrap("pushState");
         wrap("replaceState");
         w.addEventListener("popstate", () => onNav(true));
-        w.addEventListener("scroll", onScroll, { passive: true });
+        if (full)
+            w.addEventListener("scroll", onScroll, { passive: true });
         d.addEventListener("visibilitychange", safe(() => {
             if (d.visibilityState === "hidden") {
                 if (visibleSince)
@@ -164,13 +172,14 @@ const safe = (f) => (...a) => {
             else
                 visibleSince = Date.now();
         }));
-        w.addEventListener("pagehide", safe(() => {
-            if (visibleSince)
-                visibleMs += Date.now() - visibleSince;
-            visibleSince = 0;
-            t.push(withPath({ name: "page.leave", activeMs: Math.min(Math.round(visibleMs), 3_600_000) }));
-            t.flush(true);
-        }));
+        if (full)
+            w.addEventListener("pagehide", safe(() => {
+                if (visibleSince)
+                    visibleMs += Date.now() - visibleSince;
+                visibleSince = 0;
+                t.push(withPath({ name: "page.leave", activeMs: Math.min(Math.round(visibleMs), 3_600_000) }));
+                t.flush(true);
+            }));
         view();
         t.retryParked();
     }

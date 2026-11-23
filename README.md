@@ -48,6 +48,11 @@ oldest unsent event, at 20 events, or on hide (by `sendBeacon`). It reads only `
 attributes (plus the path, the published page's title and page-type meta, and a CTA's
 destination host), never a typed value, and nothing on the page waits for it.
 
+**On `spoke_public` it sends only `page.view` (GD-3035, plan §3.3 item 4).** Pages a tenant's
+clients use (portals, `/c/[token]`, `/d/[token]`) get a `page.view` on load and on an in-page
+route change, and nothing else: the script installs no scroll, `[data-section]`, click or
+`pagehide` listener on that surface. Every other surface is unchanged.
+
 **It never throws into the page (v0.1.1, GD-2739).** Every callback it installs is guarded,
 and `rt_q` is validated on every read: anything that is not a well-formed batch is dropped and
 counted, never trusted. It wraps `history.pushState` / `replaceState` (a `replaceState` counts as
