@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased (S12b package half, Platform KA prompt 1784) — DRAFT
+
+The package half of S12b, including the page script's ads hook (ships at `/t/s.v1.2.js`).
+
+- **The page-script size limit is 3,584 B gzip** (was 3,072 B): KA ruling 1786, plan §4 and S12 design §3.5,
+  marker `S12-SIZE-KA1786`. With the hook, `dist/script/s.js` is 7214 B minified, 3337 B gzip.
+- **The ads hook** (`marketing` and `tenant_site` only; never `spoke_public` or `in_app`, design §3.4): one `pageId`
+  per document load and `nav` (`load` | `spa`) on `page.view`; `landing.adclick` on the first batch when the URL
+  carries an ad-click key; `window.__rt.ads(reason)` → one `ads.decision` per `pageId`; `/t/a.v1.js` appended once
+  per document after `load` and an idle callback, with no GPC skip.
+
+- **Client events** (`CLIENT_EVENT_SCHEMAS`, `parseClientEvent`): `landing.adclick {pageId, params}` and
+  `ads.decision {pageId, reason}`. They are what the page script sends; the edge transforms them. The 12 stored
+  events are unchanged in number.
+- **Stored schema fields** (all optional):
+  - `page.view.pageId` / `page.view.nav` (`load` | `spa`), accepted on `marketing` and `tenant_site` only;
+  - `visit.start.adClick` / `link.hit.adClick`, written by the edge: 1–4 `{kind, id}`, unique kinds.
+- **`/t/c` strips the four ad-click keys** as well as `rg` and `r`; every other key is kept.
+- **Constants:** `AD_CLICK_KEYS`, `AD_CLICK_VALUE`, `ADS_REASONS`, `ADS_VENDORS` (empty), `RTK_LETTERS`
+  (`t`, `c`, `p`), `RTK_RESERVED_LETTERS` (`f`), `ADS_LOADER_PATH` (`/t/a.v1.js`).
+- **The loader body:** `adsLoaderScript` / `adsNoTagScript` (≤ 2 KB gzip, its own test).
+- **Build test:** `dist/script/s*.js` carries no vendor hostname.
+- README install line now names `#v0.3.1`.
+
 ## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
 
 - **The page script sends only `page.view` on `spoke_public`** (plan §3.3 item 4). On that surface it no longer

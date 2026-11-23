@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { APP_SLUGS, type AppSlug } from "@rello-platform/slugs";
 import { FEATURES, ROUTES, FEATURE_KEY_MAX } from "./registry.js";
+import { AD_CLICK_KEYS, AD_CLICK_VALUE } from "./ads.js";
 
 export const EVENT_NAMES = [
   "link.hit",
@@ -50,6 +51,18 @@ const PATH = z.string().max(512).regex(/^\/[^\s?#]*$/);
 /** The recipient token shape `r<v>.<recipientId>.<mac>` (§2.3); only Rello verifies it. */
 const TOKEN = z.string().max(160).regex(/^r[0-9]{1,3}\.[A-Za-z0-9_-]{1,64}\.[A-Za-z0-9_-]{1,64}$/);
 const UTM_VALUE = z.string().max(100);
+/**
+ * S12 design §5.1 Rev 3: the ad-click ids the EDGE writes on `visit.start` and `link.hit` (from the
+ * client's `landing.adclick`, or from `/t/c`'s own URL). Up to 4, one per kind. Never browser-written.
+ */
+const AD_CLICK = z
+  .array(z.object({ kind: z.enum(AD_CLICK_KEYS), id: z.string().max(512).regex(AD_CLICK_VALUE) }).strict())
+  .min(1)
+  .max(AD_CLICK_KEYS.length)
+  .refine((xs) => new Set(xs.map((x) => x.kind)).size === xs.length, { message: "adClick kinds must be unique" })
+  .optional();
+/** S12 design §8 Rev 3 reach block: whether a page view is the document load or an in-page route change. */
+export const PAGE_NAVS = ["load", "spa"] as const;
 
 const COMMON = {
   id: z.uuid(),
@@ -149,7 +162,7 @@ export function buildEventSchemas(reg: { features: Registry; routes: Registry })
       .strict()
       .superRefine((e, ctx) => checkPath(e as PathCtx, ctx, reg.routes, pathRequired && !TEMPLATED_SURFACES.has((e as PathCtx).surface)));
 
-  const linkShape = { rg: ID.optional(), r: TOKEN.optional(), uaClass: z.enum(UA_CLASSES), asnClass: z.enum(ASN_CLASSES) };
+  const linkShape = { rg: ID.optional(), r: TOKEN.optional(), uaClass: z.enum(UA_CLASSES), asnClass: z.enum(ASN_CLASSES), adClick: AD_CLICK };
 
   return {
     "link.hit": z.object({ ...named("link.hit"), ...linkShape }).strict(),
@@ -161,15 +174,30 @@ export function buildEventSchemas(reg: { features: Registry; routes: Registry })
         referrerHost: HOST.optional(),
         utm: z.object({ source: UTM_VALUE.optional(), medium: UTM_VALUE.optional(), campaign: UTM_VALUE.optional() }).strict().optional(),
         rg: ID.optional(),
+        adClick: AD_CLICK,
       })
       .strict(),
     "page.view": z
-      .object({ ...named("page.view"), path: PATH.optional(), pageType: z.enum(PAGE_TYPES), title: z.string().max(120).optional() })
+      .object({
+        ...named("page.view"),
+        path: PATH.optional(),
+        pageType: z.enum(PAGE_TYPES),
+        title: z.string().max(120).optional(),
+        // S12 design §8 Rev 3: one pageId per document load (the join key for ads.decision), and
+        // whether this view is that load or an in-page route change.
+        pageId: ID.optional(),
+        nav: z.enum(PAGE_NAVS).optional(),
+      })
       .strict()
       .superRefine((e, ctx) => {
         checkPath(e, ctx, reg.routes, !TEMPLATED_SURFACES.has(e.surface));
-        if (e.title !== undefined && e.surface !== "marketing" && e.surface !== "tenant_site") {
+        const published = e.surface === "marketing" || e.surface === "tenant_site";
+        if (e.title !== undefined && !published) {
           ctx.addIssue({ code: "custom", path: ["title"], message: "title is accepted only on marketing and tenant_site" });
+        }
+        // S12 design §3.4: no ads on client portals or in-app screens, so no ads join key there either.
+        for (const k of ["pageId", "nav"] as const) {
+          if (e[k] !== undefined && !published) ctx.addIssue({ code: "custom", path: [k], message: `${k} is accepted only on marketing and tenant_site` });
         }
       }),
     "page.leave": pathEvent("page.leave", { activeMs: z.number().int().min(0).max(3_600_000) }),

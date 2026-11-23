@@ -11,8 +11,11 @@ import type { z } from "zod";
 export declare function findUnboundedStrings(schema: z.ZodType): string[];
 /** Field paths of objects that accept unknown keys. */
 export declare function findNonStrictObjects(schema: z.ZodType): string[];
-/** The script size limit (plan §4): ≤ 3 KB minified + gzipped. */
-export declare const SCRIPT_GZIP_LIMIT_BYTES = 3072;
+/**
+ * The script size limit (plan §4): ≤ 3,584 B (3.5 KB) minified + gzipped. Raised from 3,072 B by
+ * KA ruling 1786 (plan §4 and S12 design §3.5, marker S12-SIZE-KA1786) for S12b's ads hook.
+ */
+export declare const SCRIPT_GZIP_LIMIT_BYTES = 3584;
 /** Pure check used by the size test; `gzipBytes` is the minified file's gzip size. */
 export declare function checkScriptSize(gzipBytes: number, limit?: number): {
     ok: boolean;

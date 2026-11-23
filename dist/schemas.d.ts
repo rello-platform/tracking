@@ -22,6 +22,8 @@ export declare const PAGE_TYPES: readonly ["home", "feature", "pricing", "compar
 export declare const SCROLL_DEPTHS: readonly [25, 50, 75, 100];
 export declare const WIDGET_ACTIONS: readonly ["open", "change", "submit"];
 export declare const IDENTIFY_SOURCES: readonly ["email_token", "sign_in", "form", "checkout"];
+/** S12 design §8 Rev 3 reach block: whether a page view is the document load or an in-page route change. */
+export declare const PAGE_NAVS: readonly ["load", "spa"];
 /**
  * v0.2.0 (S9): the events only an app SERVER sends. The browser intake refuses both by name
  * (tracking-engine src/intake.ts BROWSER_EVENTS), so they reach the store only through the
@@ -45,20 +47,29 @@ export declare function buildEventSchemas(reg: {
         rg: z.ZodOptional<z.ZodString>;
         r: z.ZodOptional<z.ZodString>;
         uaClass: z.ZodEnum<{
+            unknown: "unknown";
             bot: "bot";
             browser: "browser";
             scanner: "scanner";
             prefetch: "prefetch";
-            unknown: "unknown";
         }>;
         asnClass: z.ZodEnum<{
-            mobile: "mobile";
             unknown: "unknown";
+            mobile: "mobile";
             residential: "residential";
             business: "business";
             hosting: "hosting";
             security_vendor: "security_vendor";
         }>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -102,20 +113,29 @@ export declare function buildEventSchemas(reg: {
         rg: z.ZodOptional<z.ZodString>;
         r: z.ZodOptional<z.ZodString>;
         uaClass: z.ZodEnum<{
+            unknown: "unknown";
             bot: "bot";
             browser: "browser";
             scanner: "scanner";
             prefetch: "prefetch";
-            unknown: "unknown";
         }>;
         asnClass: z.ZodEnum<{
-            mobile: "mobile";
             unknown: "unknown";
+            mobile: "mobile";
             residential: "residential";
             business: "business";
             hosting: "hosting";
             security_vendor: "security_vendor";
         }>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -164,6 +184,15 @@ export declare function buildEventSchemas(reg: {
             campaign: z.ZodOptional<z.ZodString>;
         }, z.core.$strict>>;
         rg: z.ZodOptional<z.ZodString>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -223,6 +252,11 @@ export declare function buildEventSchemas(reg: {
             other: "other";
         }>;
         title: z.ZodOptional<z.ZodString>;
+        pageId: z.ZodOptional<z.ZodString>;
+        nav: z.ZodOptional<z.ZodEnum<{
+            load: "load";
+            spa: "spa";
+        }>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -615,20 +649,29 @@ export declare const EVENT_SCHEMAS: {
         rg: z.ZodOptional<z.ZodString>;
         r: z.ZodOptional<z.ZodString>;
         uaClass: z.ZodEnum<{
+            unknown: "unknown";
             bot: "bot";
             browser: "browser";
             scanner: "scanner";
             prefetch: "prefetch";
-            unknown: "unknown";
         }>;
         asnClass: z.ZodEnum<{
-            mobile: "mobile";
             unknown: "unknown";
+            mobile: "mobile";
             residential: "residential";
             business: "business";
             hosting: "hosting";
             security_vendor: "security_vendor";
         }>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -672,20 +715,29 @@ export declare const EVENT_SCHEMAS: {
         rg: z.ZodOptional<z.ZodString>;
         r: z.ZodOptional<z.ZodString>;
         uaClass: z.ZodEnum<{
+            unknown: "unknown";
             bot: "bot";
             browser: "browser";
             scanner: "scanner";
             prefetch: "prefetch";
-            unknown: "unknown";
         }>;
         asnClass: z.ZodEnum<{
-            mobile: "mobile";
             unknown: "unknown";
+            mobile: "mobile";
             residential: "residential";
             business: "business";
             hosting: "hosting";
             security_vendor: "security_vendor";
         }>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -734,6 +786,15 @@ export declare const EVENT_SCHEMAS: {
             campaign: z.ZodOptional<z.ZodString>;
         }, z.core.$strict>>;
         rg: z.ZodOptional<z.ZodString>;
+        adClick: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            kind: z.ZodEnum<{
+                gclid: "gclid";
+                gbraid: "gbraid";
+                wbraid: "wbraid";
+                fbclid: "fbclid";
+            }>;
+            id: z.ZodString;
+        }, z.core.$strict>>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;
@@ -793,6 +854,11 @@ export declare const EVENT_SCHEMAS: {
             other: "other";
         }>;
         title: z.ZodOptional<z.ZodString>;
+        pageId: z.ZodOptional<z.ZodString>;
+        nav: z.ZodOptional<z.ZodEnum<{
+            load: "load";
+            spa: "spa";
+        }>>;
         id: z.ZodUUID;
         ts: z.ZodISODateTime;
         tenantId: z.ZodString;

@@ -3,8 +3,10 @@
  * Queue, KV or Rello call is on its path, so the engine Worker, an origin fallback
  * route and an app with no zone route all give the same 302 from the same code.
  *
- * `/t/c/<path>?<query>&rg=…&r=…` → `/<path>?<query>`: only `rg` and `r` are removed and
- * every other query parameter is kept, so an open redirect is impossible by construction.
+ * `/t/c/<path>?<query>&rg=…&r=…` → `/<path>?<query>`: `rg`, `r` and the four ad-click keys
+ * (`gclid`, `gbraid`, `wbraid`, `fbclid`; S12 design §5.1, which the edge records from this URL) are
+ * removed and every other query parameter is kept, so an open redirect is impossible by
+ * construction and a click id never reaches a canonical URL or a cache.
  *
  * REJECTION RULE (GD-2743). The destination is the path after `/t/c`, percent-decoded once.
  * It is rejected when the decoded path contains `//` anywhere (leading or internal, written
@@ -16,7 +18,7 @@
  * so `/t/c/../x` is outside `/t/c`.
  */
 export const REDIRECT_PREFIX = "/t/c";
-const STRIPPED = new Set(["rg", "r"]);
+const STRIPPED = new Set(["rg", "r", "gclid", "gbraid", "wbraid", "fbclid"]);
 /** The Location for a `/t/c` request URL. Always a same-host path starting with a single "/". */
 export function redirectLocation(requestUrl) {
     let url;

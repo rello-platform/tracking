@@ -30,6 +30,11 @@ describe("/t/c redirect (plan §2.4, Rev 3 GD-2706)", () => {
   test("an unparseable URL goes to /", () => {
     expect(redirectLocation("not a url")).toBe("/");
   });
+  test("S12 §5.1: the four ad-click keys are stripped too, and every other key is kept", () => {
+    expect(at("/t/c/pricing?gclid=Cj0KCQiA_abc&rg=y")).toBe("/pricing");
+    expect(at("/t/c/pricing?plan=pro&gclid=a1b2c3d4e5&gbraid=g1&wbraid=w1&fbclid=IwAR0x&utm_source=fb&r=r1.a.b")).toBe("/pricing?plan=pro&utm_source=fb");
+    expect(at("/t/c/rates?GCLID=keep-the-case&zip=84101")).toBe("/rates?GCLID=keep-the-case&zip=84101");
+  });
   test("the attribution is read separately and never shapes the Location", () => {
     expect(redirectAttribution("https://hellorello.app/t/c/pricing?rg=cmp_1&r=r1.a.b")).toEqual({ rg: "cmp_1", r: "r1.a.b" });
     expect(redirectAttribution("https://hellorello.app/t/c/pricing")).toEqual({});
