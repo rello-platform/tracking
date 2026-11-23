@@ -5,7 +5,7 @@ slice imports it: the Tracking Engine's edge and consumer, Rello, and each app's
 in-app sender.
 
 ```
-npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.2"
+npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.3.0"
 ```
 
 ## What is in it
@@ -14,7 +14,7 @@ npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.1.2"
 |---|---|
 | `EVENT_NAMES`, `EVENT_SCHEMAS`, `parseEvent` | The 12 stored events (`link.hit`, `link.scanned`, `visit.start`, `page.view`, `page.leave`, `scroll.depth`, `section.read`, `cta.click`, `widget.use`, `identify`, `screen.opened`, `feature.used`). Each is a zod `.strict()` object; the event name is in `name`. Common fields are filled in by the edge or app server, never by a browser. |
 | `ROUTES[app]`, `matchRoute` | Registered route templates. `screen.opened.route`, and `path` on `spoke_public`/`in_app`, must be one of the event's app's templates. |
-| `FEATURES[app]` | Registered `feature.used` keys. An app's `feature.used` is refused unless its key is registered here in a reviewed release. v0.2.0 (PROPOSED) registers Rello's first eleven (S9 part 3); every other app registers none yet. |
+| `FEATURES[app]` | Registered `feature.used` keys. An app's `feature.used` is refused unless its key is registered here in a reviewed release. v0.3.0 registers Rello's first eleven (S9 part 3); every other app registers none yet. |
 | `findUnboundedStrings`, `findNonStrictObjects` | Guards: the package test runs them over all 12 schemas and requires an empty list. |
 | `checkScriptSize`, `SCRIPT_GZIP_LIMIT_BYTES` | The page script must be ≤ 3,072 B minified + gzipped (level 9). |
 | `@rello-platform/tracking/redirect` | `redirectLocation(url)`: the pure `/t/c` 302. It removes only `rg` and `r` and keeps the rest of the query. A rejected destination goes to bare `/` (rule below). |
@@ -71,7 +71,7 @@ A parked batch keeps its `b` and `v`, so a retry has the same identity at the ed
 happened to cookies, the session or the date. `rt_q` is capped at 200 events and 51,200 bytes of
 UTF-8 (the stored JSON text), oldest out.
 
-## The server sender (v0.2.0 PROPOSED, S9)
+## The server sender (v0.2.0, S9)
 
 ```ts
 import { createTracker } from "@rello-platform/tracking/server";
