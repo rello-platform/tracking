@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (S12b package half, Platform KA prompt 1784) — DRAFT
+## v0.4.0 — 2026-11-23 (S12b package half, Platform KA prompts 1784 and 1808; #6)
 
 The package half of S12b, including the page script's ads hook (ships at `/t/s.v1.2.js`).
 
@@ -22,7 +22,7 @@ The package half of S12b, including the page script's ads hook (ships at `/t/s.v
   (`t`, `c`, `p`), `RTK_RESERVED_LETTERS` (`f`), `ADS_LOADER_PATH` (`/t/a.v1.js`).
 - **The loader body:** `adsLoaderScript` / `adsNoTagScript` (≤ 2 KB gzip, its own test).
 - **Build test:** `dist/script/s*.js` carries no vendor hostname.
-- README install line now names `#v0.3.1`.
+- README install line now names `#v0.4.0`.
 
 ## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
 

@@ -5,7 +5,7 @@ slice imports it: the Tracking Engine's edge and consumer, Rello, and each app's
 in-app sender.
 
 ```
-npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.3.1"
+npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.4.0"
 ```
 
 ## What is in it
