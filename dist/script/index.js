@@ -15,6 +15,11 @@
 import { createTransport, matchTemplate } from "./core.js";
 const PAGE_TYPES = "home feature pricing compare integrations about blog article contact legal signup listing portal app other".split(" ");
 const SLUG = /^[a-z0-9-]{1,64}$/;
+/** S12 design §5.1: the four ad-click keys and their value shape (the same as AD_CLICK_KEYS / AD_CLICK_VALUE in ../ads.ts; a test pins them equal). */
+const AD_KEYS = "gclid gbraid wbraid fbclid".split(" ");
+const AD_VALUE = /^[A-Za-z0-9._-]{8,512}$/;
+/** A loader reason's shape; the edge checks it against ADS_REASONS. */
+const REASON = /^[a-z_]{1,32}$/;
 /** Every callback the script installs runs through this: tracking never throws into the page (GD-2739). */
 const safe = (f) => (...a) => {
     try {
@@ -43,6 +48,10 @@ const safe = (f) => (...a) => {
         catch {
             st = undefined;
         }
+        const rnd = () => (w.crypto?.randomUUID ? w.crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+        // S12 design §8 Rev 3 reach block: one pageId per document load, never per SPA route change.
+        const pageId = rnd();
+        let nav = "load";
         const t = createTransport({
             now: () => Date.now(),
             setTimeout: (f, ms) => w.setTimeout(f, ms),
@@ -50,7 +59,7 @@ const safe = (f) => (...a) => {
             fetch: w.fetch ? (u, i) => w.fetch(u, i) : undefined,
             sendBeacon: navigator.sendBeacon ? (u, b) => navigator.sendBeacon(u, b) : undefined,
             storage: st,
-            random: () => (w.crypto?.randomUUID ? w.crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)),
+            random: rnd,
             gpc: navigator.globalPrivacyControl === true,
         });
         const pathNow = () => {
@@ -70,8 +79,13 @@ const safe = (f) => (...a) => {
             marks = {};
             const meta = d.querySelector('meta[name="rello:page-type"]')?.content || "";
             const e = { name: "page.view", pageType: PAGE_TYPES.includes(meta) ? meta : "other" };
-            if (published && d.title)
-                e.title = d.title.slice(0, 120);
+            if (published) {
+                if (d.title)
+                    e.title = d.title.slice(0, 120);
+                e.pageId = pageId;
+                e.nav = nav;
+            }
+            nav = "spa";
             t.push(withPath(e));
         });
         // scroll.depth at 25/50/75/100 crossings
@@ -137,6 +151,17 @@ const safe = (f) => (...a) => {
                     t.push(withPath({ name: "widget.use", widgetId: wd.dataset.widget, action: ["change", "submit"].includes(act) ? act : "open" }));
                 }
             }), true);
+        const loader = safe(() => {
+            const s = d.createElement("script");
+            s.src = "/t/a.v1.js";
+            d.head.appendChild(s);
+        });
+        const idle = safe(() => {
+            if (w.requestIdleCallback)
+                w.requestIdleCallback(loader);
+            else
+                w.setTimeout(loader, 1);
+        });
         // In-app route changes count as views: every pushState, and a replaceState that changes the
         // path. The native call runs first and OUTSIDE any catch, so an error it throws reaches the
         // page's caller unchanged; only the tracking that follows is guarded (GD-2739).
@@ -180,6 +205,39 @@ const safe = (f) => (...a) => {
                 t.push(withPath({ name: "page.leave", activeMs: Math.min(Math.round(visibleMs), 3_600_000) }));
                 t.flush(true);
             }));
+        // S12 design §3.4: ads run only on published pages (Rello's marketing pages and a host's own
+        // tenant site), never on client portals (spoke_public) or in-app screens.
+        if (published) {
+            // S12 design §5.1 Rev 3: the ad-click keys ride on this page's first batch (the page.view below
+            // sends it at once). No other query key is read. A bad value is dropped on its own.
+            safe(() => {
+                const q = new URLSearchParams(location.search);
+                const params = [];
+                for (const key of AD_KEYS) {
+                    const value = q.get(key);
+                    if (value && AD_VALUE.test(value))
+                        params.push({ key, value });
+                }
+                if (params.length)
+                    t.push({ name: "landing.adclick", pageId, params });
+            })();
+            // S12 design §8 Rev 3: the loader reports its decision; one ads.decision per pageId, later calls ignored.
+            let told = 0;
+            w.__rt = {
+                ads: safe((reason) => {
+                    if (!told && typeof reason == "string" && REASON.test(reason)) {
+                        told = 1;
+                        t.push({ name: "ads.decision", pageId, reason });
+                    }
+                }),
+            };
+            // S12 design §3.1 (Rev 2: no GPC skip): the ads loader, once per document, after load and an
+            // idle callback. The edge decides what it holds.
+            if (d.readyState == "complete")
+                idle();
+            else
+                w.addEventListener("load", idle);
+        }
         view();
         t.retryParked();
     }
