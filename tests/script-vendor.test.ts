@@ -1,7 +1,7 @@
 /**
  * S12 design §3.5: third-party tags are never bundled, proxied or inlined. Every built same-origin
  * page script (`dist/script/s*.js`, rebuilt by `npm test`) must carry no vendor hostname, so the
- * 3 KB budget can't be spent on vendor code by accident. Vendor bytes load only from the vendors'
+ * 3.5 KB budget can't be spent on vendor code by accident. Vendor bytes load only from the vendors'
  * own origins, through the loader (`/t/a.v1.js`), after load and idle.
  */
 import { readdirSync, readFileSync } from "node:fs";

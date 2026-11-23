@@ -16,7 +16,7 @@ npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.3.1"
 | `ROUTES[app]`, `matchRoute` | Registered route templates. `screen.opened.route`, and `path` on `spoke_public`/`in_app`, must be one of the event's app's templates. |
 | `FEATURES[app]` | Registered `feature.used` keys. An app's `feature.used` is refused unless its key is registered here in a reviewed release. v0.3.0 registers Rello's first eleven (S9 part 3); every other app registers none yet. |
 | `findUnboundedStrings`, `findNonStrictObjects` | Guards: the package test runs them over all 12 schemas and requires an empty list. |
-| `checkScriptSize`, `SCRIPT_GZIP_LIMIT_BYTES` | The page script must be ≤ 3,072 B minified + gzipped (level 9). |
+| `checkScriptSize`, `SCRIPT_GZIP_LIMIT_BYTES` | The page script must be ≤ 3,584 B minified + gzipped (level 9); raised from 3,072 B by KA ruling 1786 (S12-SIZE-KA1786) for S12b's ads hook. |
 | `@rello-platform/tracking/redirect` | `redirectLocation(url)`: the pure `/t/c` 302. It removes `rg`, `r` and the four ad-click keys (`gclid`, `gbraid`, `wbraid`, `fbclid`, S12 §5.1) and keeps the rest of the query. A rejected destination goes to bare `/` (rule below). |
 | `CLIENT_EVENT_NAMES`, `CLIENT_EVENT_SCHEMAS`, `parseClientEvent` | S12b: the two client events the page script sends and the edge transforms (not stored events): `landing.adclick {pageId, params}` (the four ad-click keys, 1–4, unique) and `ads.decision {pageId, reason}`. `.strict()`, every string bounded. |
 | `AD_CLICK_KEYS`, `AD_CLICK_VALUE`, `adClickParams` | S12 §5.1: the only query keys read for ad attribution, their value shape (`[A-Za-z0-9._-]{8,512}`), and the one reader (a bad value drops that key alone). |

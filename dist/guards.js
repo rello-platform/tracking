@@ -40,8 +40,11 @@ export function findNonStrictObjects(schema) {
     });
     return out;
 }
-/** The script size limit (plan §4): ≤ 3 KB minified + gzipped. */
-export const SCRIPT_GZIP_LIMIT_BYTES = 3072;
+/**
+ * The script size limit (plan §4): ≤ 3,584 B (3.5 KB) minified + gzipped. Raised from 3,072 B by
+ * KA ruling 1786 (plan §4 and S12 design §3.5, marker S12-SIZE-KA1786) for S12b's ads hook.
+ */
+export const SCRIPT_GZIP_LIMIT_BYTES = 3584;
 /** Pure check used by the size test; `gzipBytes` is the minified file's gzip size. */
 export function checkScriptSize(gzipBytes, limit = SCRIPT_GZIP_LIMIT_BYTES) {
     return { ok: Number.isFinite(gzipBytes) && gzipBytes > 0 && gzipBytes <= limit, gzipBytes, limit };

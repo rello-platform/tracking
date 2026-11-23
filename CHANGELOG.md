@@ -2,8 +2,14 @@
 
 ## Unreleased (S12b package half, Platform KA prompt 1784) — DRAFT
 
-The page script's ads hook is NOT in this change: it does not fit the 3,072 B gzip guard (see the PR). This is
-everything else in the package half, so the engine half can build against it.
+The package half of S12b, including the page script's ads hook (ships at `/t/s.v1.2.js`).
+
+- **The page-script size limit is 3,584 B gzip** (was 3,072 B): KA ruling 1786, plan §4 and S12 design §3.5,
+  marker `S12-SIZE-KA1786`. With the hook, `dist/script/s.js` is 7214 B minified, 3337 B gzip.
+- **The ads hook** (`marketing` and `tenant_site` only; never `spoke_public` or `in_app`, design §3.4): one `pageId`
+  per document load and `nav` (`load` | `spa`) on `page.view`; `landing.adclick` on the first batch when the URL
+  carries an ad-click key; `window.__rt.ads(reason)` → one `ads.decision` per `pageId`; `/t/a.v1.js` appended once
+  per document after `load` and an idle callback, with no GPC skip.
 
 - **Client events** (`CLIENT_EVENT_SCHEMAS`, `parseClientEvent`): `landing.adclick {pageId, params}` and
   `ads.decision {pageId, reason}`. They are what the page script sends; the edge transforms them. The 12 stored
@@ -16,7 +22,6 @@ everything else in the package half, so the engine half can build against it.
   (`t`, `c`, `p`), `RTK_RESERVED_LETTERS` (`f`), `ADS_LOADER_PATH` (`/t/a.v1.js`).
 - **The loader body:** `adsLoaderScript` / `adsNoTagScript` (≤ 2 KB gzip, its own test).
 - **Build test:** `dist/script/s*.js` carries no vendor hostname.
-- `dist/script/s.js` is byte-identical to v0.3.1 (sha256 `379d161e…`).
 - README install line now names `#v0.3.1`.
 
 ## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
