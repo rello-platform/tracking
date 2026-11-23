@@ -71,6 +71,37 @@ A parked batch keeps its `b` and `v`, so a retry has the same identity at the ed
 happened to cookies, the session or the date. `rt_q` is capped at 200 events and 51,200 bytes of
 UTF-8 (the stored JSON text), oldest out.
 
+## The server sender (v0.2.0 PROPOSED, S9)
+
+```ts
+import { createTracker } from "@rello-platform/tracking/server";
+
+const tracker = createTracker({
+  app: "rello",
+  engineUrl: process.env.TRACKING_ENGINE_URL,      // missing → nothing sent, one counted line
+  apiKey: () => process.env.TRACKING_ENGINE_API_KEY, // <APP> → TRACKING_ENGINE, tracking:write
+});
+
+// In a route handler: returns at once, never throws. `tenantId` is the signed-in session's tenant.
+tracker.track({ name: "feature.used", tenantId, feature: "leads.create" }, { defer: after });
+tracker.track({ name: "screen.opened", tenantId, route: "/leads/[id]" });
+```
+
+| Rule (plan §5.5 L5) | Behaviour |
+|---|---|
+| Validation | `EVENT_SCHEMAS` + `FEATURES` / `ROUTES`. An unregistered feature or route is dropped and counted, never sent. |
+| Batching | In-process buffer; a send every ≤ 10 s, or at once at 100 events. ≤ 100 events per `POST <engine>/v1/events`. |
+| Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx): at 2 s, 10 s and 30 s. A refusal (other 4xx) is never retried. |
+| Drop | After the 4th attempt: one line `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 …`. |
+| Logs | App, event names, counts, reasons and statuses only, never a field value. |
+| Host hook | `track(e, { defer })`: Next.js `after`, or a Worker's `ctx.waitUntil` (pass it per call: a ctx is per request). On a Worker no timer outlives the response, so the next `track()` after 10 s starts the send. |
+| Losses | A process that dies loses its buffer without a line (L5). Nothing is written to the hub. |
+
+It runs on Node ≥ 19 and Cloudflare Workers (`fetch`, `AbortController`, `setTimeout`, `crypto.randomUUID`).
+`feature.used` and `screen.opened` carry no edge facts from a server: `visitorId`, `sessionId`, `country`,
+`region`, `deviceClass`, `ipHash` and `gpc` are optional on those two events only (pass the browser's
+`visitorId` / `sessionId` when the app has them).
+
 ## The `/t/c` rejection rule (v0.1.1, GD-2743)
 
 The destination is the path after `/t/c`, percent-decoded once. It is **rejected** when the
