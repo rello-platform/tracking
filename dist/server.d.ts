@@ -14,16 +14,19 @@
  *   - Events buffer in process and are sent every ≤ 10 s, or at once when 100 are waiting,
  *     whichever comes first. One send is one POST of ≤ 100 events to `<engine>/v1/events`.
  *   - Each attempt has a 2 s timeout. Only an UNAVAILABLE answer is retried (no answer, a timeout,
- *     429, or 5xx), up to 3 times over about 30 s (at 2 s, 10 s and 30 s). A refusal (any other
- *     4xx) is never retried. After the last retry the batch is dropped with ONE counted log line:
+ *     429, or 5xx, or a 200 whose body can't be read or isn't `{ stored, refused: [...] }` with no
+ *     more refusals than events sent), up to 3 times over about 30 s (at 2 s, 10 s and 30 s), always
+ *     the same batch (same batchId and event ids). A refusal (any other 4xx) is never retried. After the last retry the batch is dropped with ONE counted log line:
  *     `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 names=<name>:<n>,…`
  *   - Log lines carry the app slug, event names, counts, reasons and HTTP statuses only: never a
  *     field value (no tenant, visitor, feature, route, key or URL).
- *   - The host hook: `track(input, { defer })` hands any send that call starts to `defer`, which is
- *     Next.js `after()` or a Worker's `ctx.waitUntil`, so the send runs after the response. On a
- *     Worker a timer does not outlive the response, so there a send starts on the first `track()`
- *     after the buffer is 10 s old. `createTracker({ defer })` sets a default hook; a per-call
- *     `defer` wins (a Worker's ctx belongs to one request, so pass it per call).
+ *   - The host hook: `track(input, { defer })` hands `defer` (Next.js `after()` or a Worker's
+ *     `ctx.waitUntil`) a promise every time: the send the call starts, or, when the call only
+ *     buffers, the 10 s timed send, which settles when that send (or an earlier one that empties
+ *     the buffer) finishes. So a Worker request that tracks one event and is never followed by
+ *     another still keeps its timed send alive (GD-3042). `createTracker({ defer })` sets a default
+ *     hook that takes the timer's own send; a per-call `defer` wins for the sends a call starts
+ *     (a Worker's ctx belongs to one request, so pass it per call).
  *
  * Losses, as L5 states them: a process that dies loses its buffer without a log line; retries that
  * run out are counted. There is deliberately no hub outbox (plan §5.5 L5).
@@ -164,6 +167,14 @@ export interface Tracker {
 }
 /** Classify an answer. Only "unavailable" is retried. */
 export declare function classifyStatus(status: number): "accepted" | "refused" | "unavailable";
+/**
+ * GD-3041 (AUDIT 138, KA 1743): the refused count of a 200 partial answer
+ * `{ stored, refused: [{ i, reason }] }` for a batch of `events`, or `null` when the body is not
+ * that shape (not an object, `refused` not an array, or more refusals than events sent). `null`
+ * means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried, never
+ * counted accepted.
+ */
+export declare function partialRefusedCount(body: unknown, events: number): number | null;
 export declare function createTracker(options: TrackerOptions): Tracker;
 export {};
 //# sourceMappingURL=server.d.ts.map

@@ -91,10 +91,11 @@ tracker.track({ name: "screen.opened", tenantId, route: "/leads/[id]" });
 |---|---|
 | Validation | `EVENT_SCHEMAS` + `FEATURES` / `ROUTES`. An unregistered feature or route is dropped and counted, never sent. |
 | Batching | In-process buffer; a send every ≤ 10 s, or at once at 100 events. ≤ 100 events per `POST <engine>/v1/events`. |
-| Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx): at 2 s, 10 s and 30 s. A refusal (other 4xx) is never retried. |
+| Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx, or a 200 whose body can't be read or isn't `{ stored, refused: [...] }` with no more refusals than events): at 2 s, 10 s and 30 s, always the same batchId and event ids. A refusal (other 4xx) is never retried. |
+| Partial answer | 200 `{ stored, refused: [{ i, reason }] }`: `refused.length` counted refused, the rest accepted, no retry. |
 | Drop | After the 4th attempt: one line `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 …`. |
 | Logs | App, event names, counts, reasons and statuses only, never a field value. |
-| Host hook | `track(e, { defer })`: Next.js `after`, or a Worker's `ctx.waitUntil` (pass it per call: a ctx is per request). On a Worker no timer outlives the response, so the next `track()` after 10 s starts the send. |
+| Host hook | `track(e, { defer })`: Next.js `after`, or a Worker's `ctx.waitUntil` (pass it per call: a ctx is per request). Every call hands `defer` a promise: the send it starts, or, if it only buffered, the 10 s timed send. So one event on a Worker with no later request is still sent at 10 s. On a Worker, `waitUntil` lasts 30 s after the response; a timed send that also needs retries can outlast it (10 s + up to ~38 s of attempts), and the cut-off retries end without a drop line. |
 | Losses | A process that dies loses its buffer without a line (L5). Nothing is written to the hub. |
 
 It runs on Node ≥ 19 and Cloudflare Workers (`fetch`, `AbortController`, `setTimeout`, `crypto.randomUUID`).

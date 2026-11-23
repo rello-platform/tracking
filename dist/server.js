@@ -14,16 +14,19 @@
  *   - Events buffer in process and are sent every ≤ 10 s, or at once when 100 are waiting,
  *     whichever comes first. One send is one POST of ≤ 100 events to `<engine>/v1/events`.
  *   - Each attempt has a 2 s timeout. Only an UNAVAILABLE answer is retried (no answer, a timeout,
- *     429, or 5xx), up to 3 times over about 30 s (at 2 s, 10 s and 30 s). A refusal (any other
- *     4xx) is never retried. After the last retry the batch is dropped with ONE counted log line:
+ *     429, or 5xx, or a 200 whose body can't be read or isn't `{ stored, refused: [...] }` with no
+ *     more refusals than events sent), up to 3 times over about 30 s (at 2 s, 10 s and 30 s), always
+ *     the same batch (same batchId and event ids). A refusal (any other 4xx) is never retried. After the last retry the batch is dropped with ONE counted log line:
  *     `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 names=<name>:<n>,…`
  *   - Log lines carry the app slug, event names, counts, reasons and HTTP statuses only: never a
  *     field value (no tenant, visitor, feature, route, key or URL).
- *   - The host hook: `track(input, { defer })` hands any send that call starts to `defer`, which is
- *     Next.js `after()` or a Worker's `ctx.waitUntil`, so the send runs after the response. On a
- *     Worker a timer does not outlive the response, so there a send starts on the first `track()`
- *     after the buffer is 10 s old. `createTracker({ defer })` sets a default hook; a per-call
- *     `defer` wins (a Worker's ctx belongs to one request, so pass it per call).
+ *   - The host hook: `track(input, { defer })` hands `defer` (Next.js `after()` or a Worker's
+ *     `ctx.waitUntil`) a promise every time: the send the call starts, or, when the call only
+ *     buffers, the 10 s timed send, which settles when that send (or an earlier one that empties
+ *     the buffer) finishes. So a Worker request that tracks one event and is never followed by
+ *     another still keeps its timed send alive (GD-3042). `createTracker({ defer })` sets a default
+ *     hook that takes the timer's own send; a per-call `defer` wins for the sends a call starts
+ *     (a Worker's ctx belongs to one request, so pass it per call).
  *
  * Losses, as L5 states them: a process that dies loses its buffer without a log line; retries that
  * run out are counted. There is deliberately no hub outbox (plan §5.5 L5).
@@ -88,6 +91,21 @@ export function classifyStatus(status) {
         return "unavailable";
     return "refused";
 }
+/**
+ * GD-3041 (AUDIT 138, KA 1743): the refused count of a 200 partial answer
+ * `{ stored, refused: [{ i, reason }] }` for a batch of `events`, or `null` when the body is not
+ * that shape (not an object, `refused` not an array, or more refusals than events sent). `null`
+ * means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried, never
+ * counted accepted.
+ */
+export function partialRefusedCount(body, events) {
+    if (body === null || typeof body !== "object" || Array.isArray(body))
+        return null;
+    const refused = body.refused;
+    if (!Array.isArray(refused) || refused.length > events)
+        return null;
+    return refused.length;
+}
 export function createTracker(options) {
     const app = options.app;
     const schemas = options.schemas ?? EVENT_SCHEMAS;
@@ -134,9 +152,10 @@ export function createTracker(options) {
     };
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     async function attemptOnce(url, bearer, body, events) {
-        const ac = new AbortController();
-        const t = setTimeout(() => ac.abort(), SEND_TIMEOUT_MS);
+        let t;
         try {
+            const ac = new AbortController();
+            t = setTimeout(() => ac.abort(), SEND_TIMEOUT_MS);
             const doFetch = options.fetch ?? globalThis.fetch;
             const res = await doFetch(url, {
                 method: "POST",
@@ -152,24 +171,27 @@ export function createTracker(options) {
                 return { kind, status: res.status };
             if (res.status !== 200)
                 return { kind: "accepted", refused: 0 };
-            // 200 = partly refused: `{ stored, refused: [...] }`. An unreadable body counts nothing refused.
-            let refused = 0;
+            // 200 = partly refused: `{ stored, refused: [...] }`. GD-3041 (AUDIT 138, KA 1743): a 200 whose
+            // body can't be read (the 2 s deadline firing mid-body, a network drop, invalid JSON) or isn't
+            // that shape is UNAVAILABLE, never accepted. The same batch is retried (same batchId and event
+            // ids; the engine dedupes by id, so a resend is safe).
+            let parsed;
             try {
-                const parsed = (await res.json());
-                if (Array.isArray(parsed?.refused))
-                    refused = Math.min(parsed.refused.length, events);
+                parsed = await res.json();
             }
             catch {
-                refused = 0;
+                return { kind: "unavailable", status: 200 };
             }
-            return { kind: "accepted", refused };
+            const refused = partialRefusedCount(parsed, events);
+            return refused === null ? { kind: "unavailable", status: 200 } : { kind: "accepted", refused };
         }
         catch {
-            // No answer: a network error, the 2 s timeout, or a throwing fetch.
+            // No answer: a network error, the 2 s timeout, a throwing fetch or a throwing timer.
             return { kind: "unavailable", status: null };
         }
         finally {
-            clearTimeout(t);
+            if (t !== undefined)
+                clearTimeout(t);
         }
     }
     async function sendBatch(events) {
@@ -222,6 +244,23 @@ export function createTracker(options) {
             timer = null;
         }
     };
+    /**
+     * GD-3042 (AUDIT 138, KA 1743): the send the armed timer will start, as a promise a per-call
+     * `defer` can hold. It settles when the NEXT send of the buffer finishes: the timer's, or an
+     * earlier one (100 events, an old buffer, `flush()`), so a promise handed to a Worker's
+     * `waitUntil` never outlives the buffer it protects. Made lazily, only when a call hands it on.
+     */
+    let timed = null;
+    const timedSend = () => {
+        if (timed === null) {
+            let settle = () => undefined;
+            const promise = new Promise((resolve) => {
+                settle = (p) => resolve(p);
+            });
+            timed = { promise, settle };
+        }
+        return timed.promise;
+    };
     /** Take everything buffered and send it, ≤ 100 events per POST. Never rejects. */
     function sendAll() {
         clearTimer();
@@ -231,30 +270,52 @@ export function createTracker(options) {
             sends.push(sendBatch(buffer.splice(0, MAX_BATCH_EVENTS)));
         buffer = [];
         oldestAt = null;
-        return Promise.all(sends).then((rs) => rs.reduce((a, r) => ({ accepted: a.accepted + r.accepted, refused: a.refused + r.refused, dropped: a.dropped + r.dropped }), { accepted: 0, refused: 0, dropped: 0 }), () => ({ accepted: 0, refused: 0, dropped: 0 }));
+        const result = Promise.all(sends).then((rs) => rs.reduce((a, r) => ({ accepted: a.accepted + r.accepted, refused: a.refused + r.refused, dropped: a.dropped + r.dropped }), { accepted: 0, refused: 0, dropped: 0 }), () => ({ accepted: 0, refused: 0, dropped: 0 }));
+        if (timed !== null) {
+            const handedOut = timed;
+            timed = null;
+            handedOut.settle(result);
+        }
+        return result;
     }
-    /** Start a send now, handed to the host hook when there is one. */
-    const startSend = (defer) => {
-        const p = sendAll();
-        if (defer) {
-            try {
-                defer(p);
-            }
-            catch {
-                // A throwing hook: the send is already running; nothing reaches the caller.
-            }
+    /** Hand a promise to a host hook. A throwing hook never reaches the caller. */
+    const handOff = (defer, p) => {
+        if (!defer)
+            return;
+        try {
+            defer(p);
+        }
+        catch {
+            // The send is already running (or armed); nothing reaches the caller.
         }
     };
+    /** Start a send now, handed to the host hook when there is one. */
+    const startSend = (defer) => {
+        handOff(defer, sendAll());
+    };
+    /** Arm the 10 s timer once. `false` when this runtime's setTimeout throws: no timer is armed. */
     const armTimer = () => {
         if (timer !== null)
-            return;
-        timer = setTimeout(() => {
+            return true;
+        try {
+            timer = setTimeout(() => {
+                timer = null;
+                startSend(options.defer);
+            }, FLUSH_INTERVAL_MS);
+        }
+        catch {
             timer = null;
-            startSend(options.defer);
-        }, FLUSH_INTERVAL_MS);
-        const t = timer;
-        if (typeof t.unref === "function")
-            t.unref();
+            return false;
+        }
+        try {
+            const t = timer;
+            if (typeof t.unref === "function")
+                t.unref();
+        }
+        catch {
+            // unref is a Node nicety; without it the timer still fires.
+        }
+        return true;
     };
     function build(input) {
         if (input === null || typeof input !== "object")
@@ -301,8 +362,14 @@ export function createTracker(options) {
                 const defer = host?.defer ?? options.defer;
                 if (buffer.length >= MAX_BATCH_EVENTS || now - oldestAt >= FLUSH_INTERVAL_MS)
                     startSend(defer);
+                // No timer can be armed (a throwing setTimeout): send now rather than strand the event.
+                else if (!armTimer())
+                    startSend(defer);
+                // GD-3042: this call only buffered. Its per-call hook holds the timed send (≤ 10 s), so a
+                // Worker's waitUntil keeps it alive with no later request. options.defer keeps taking the
+                // timer's send as before.
                 else
-                    armTimer();
+                    handOff(host?.defer, timedSend());
             }
             catch {
                 try {

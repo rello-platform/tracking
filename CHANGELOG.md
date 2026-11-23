@@ -26,5 +26,14 @@ Draft for audit. Not tagged and not published: `package.json` stays at 0.1.2 unt
   seven, so no server event could be valid without inventing them. The browser intake refuses both events by
   name, and every browser event still requires all seven. The engine's columns for them are already nullable.
 - `dist/script/s.js` is unchanged (byte-identical).
+- **Fix round (AUDIT 138, Platform KA prompt 1743), still PROPOSED, not tagged:**
+  - GD-3041: a 200 whose body can't be read (the 2 s deadline firing mid-body, a network drop, invalid JSON) or
+    isn't the partial shape (`refused` an array no longer than the batch) is now UNAVAILABLE and retried with the
+    same batchId and event ids, then one counted drop. Before, it counted the whole batch accepted.
+    `partialRefusedCount()` is exported for the engine's contract test.
+  - GD-3042: a per-call `defer` passed to a `track()` that only buffers is handed the 10 s timed send, so a
+    Worker's `waitUntil` keeps it alive with no later request. `options.defer` still takes the timer's send.
+  - A runtime whose `setTimeout` throws no longer strands the event: `track()` sends at once instead, and an
+    attempt that cannot arm its 2 s timer counts as unavailable.
 
 Earlier releases (v0.1.0, v0.1.1, v0.1.2) are described in their commit messages and the README.
