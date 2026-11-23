@@ -19,7 +19,13 @@
       "require": "./dist/redirect.js",
       "default": "./dist/redirect.js"
     },
-    "./script": "./dist/script/s.js"
+    "./script": "./dist/script/s.js",
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.js",
+      "default": "./dist/server.js"
+    }
   },
   "files": [
     "dist",

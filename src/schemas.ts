@@ -69,6 +69,35 @@ const COMMON = {
 
 const named = <N extends EventName>(name: N) => ({ name: z.literal(name), ...COMMON });
 
+/**
+ * v0.2.0 (S9): the events only an app SERVER sends. The browser intake refuses both by name
+ * (tracking-engine src/intake.ts BROWSER_EVENTS), so they reach the store only through the
+ * keyed server intake.
+ */
+export const SERVER_EVENT_NAMES = ["feature.used", "screen.opened"] as const;
+export type ServerEventName = (typeof SERVER_EVENT_NAMES)[number];
+
+/**
+ * v0.2.0 (S9): the common fields of a SERVER event. A server request carries none of the edge's
+ * facts about a browser (country, region, device, hashed IP, GPC), and the visitor and session
+ * exist only when the app passes the browser's ids along. So those seven are optional here and
+ * left out when unknown: never filled with a guess, and never a reason to hold the event (no
+ * new gate, HOW-KAs §23). The engine's columns for them are nullable (tracking-engine
+ * migrations/0001_query_store.sql). id, ts, tenantId, app and surface stay required.
+ */
+const SERVER_COMMON = {
+  ...COMMON,
+  visitorId: COMMON.visitorId.optional(),
+  sessionId: COMMON.sessionId.optional(),
+  country: COMMON.country.optional(),
+  region: COMMON.region.optional(),
+  deviceClass: COMMON.deviceClass.optional(),
+  ipHash: COMMON.ipHash.optional(),
+  gpc: COMMON.gpc.optional(),
+} as const;
+
+const namedServer = <N extends ServerEventName>(name: N) => ({ name: z.literal(name), ...SERVER_COMMON });
+
 // ── path rules (§3.2) ───────────────────────────────────────────────────────
 // marketing: id-shaped segments must already be masked to `:id` by the edge.
 const ID_SHAPED_SEGMENT = /^(?:\d{4,}|c[a-z0-9]{20,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|.*@.*)$/i;
@@ -156,7 +185,7 @@ export function buildEventSchemas(reg: { features: Registry; routes: Registry })
         if (e.surface === "spoke_public") ctx.addIssue({ code: "custom", path: ["surface"], message: "identify is refused on spoke_public" });
       }),
     "screen.opened": z
-      .object({ ...named("screen.opened"), route: z.string().max(512) })
+      .object({ ...namedServer("screen.opened"), route: z.string().max(512) })
       .strict()
       .superRefine((e, ctx) => {
         // §3.1 Rev 2 (GD-2689): route ∈ ROUTES[app], i.e. z.enum(ROUTES[app]) chosen by the event's app.
@@ -165,7 +194,7 @@ export function buildEventSchemas(reg: { features: Registry; routes: Registry })
         }
       }),
     "feature.used": z
-      .object({ ...named("feature.used"), feature: z.string().max(FEATURE_KEY_MAX), count: z.number().int().min(1).max(1000) })
+      .object({ ...namedServer("feature.used"), feature: z.string().max(FEATURE_KEY_MAX), count: z.number().int().min(1).max(1000) })
       .strict()
       .superRefine((e, ctx) => {
         if (!enumFor(reg.features, e.app).safeParse(e.feature).success) {
