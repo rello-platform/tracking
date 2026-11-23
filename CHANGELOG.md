@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (S10, Platform KA prompt 1775; GD-3035)
+## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
 
 - **The page script sends only `page.view` on `spoke_public`** (plan §3.3 item 4). On that surface it no longer
   installs the scroll, `IntersectionObserver` (`[data-section]`), click (`[data-cta]` / `[data-widget]`) or

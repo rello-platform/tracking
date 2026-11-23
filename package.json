@@ -1,6 +1,6 @@
 {
   "name": "@rello-platform/tracking",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Platform tracking vocabulary for the Rello ecosystem: the 12 event schemas, the FEATURES and ROUTES registries, the page script, and the /t/c redirect.",
   "type": "module",
   "main": "./dist/index.js",
