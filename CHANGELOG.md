@@ -1,8 +1,6 @@
 # Changelog
 
-## v0.2.0 — PROPOSED, not tagged (S9 part 1, Platform KA prompt 1740)
-
-Draft for audit. Not tagged and not published: `package.json` stays at 0.1.2 until the release is cut.
+## v0.2.0 — 2026-11-23 (S9 part 1, Platform KA prompt 1740)
 
 - **`@rello-platform/tracking/server`: `createTracker()` and `track()`**, the in-app server sender to plan
   §5.5 L5 and the "Sign-in and app requests" seam:
