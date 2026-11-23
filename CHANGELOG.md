@@ -1,8 +1,6 @@
 # Changelog
 
-## v0.2.0 — PROPOSED, not tagged (S9 part 1, Platform KA prompt 1740)
-
-Draft for audit. Not tagged and not published: `package.json` stays at 0.1.2 until the release is cut.
+## v0.2.0 — 2026-11-23 (S9 part 1, Platform KA prompt 1740)
 
 - **`@rello-platform/tracking/server`: `createTracker()` and `track()`**, the in-app server sender to plan
   §5.5 L5 and the "Sign-in and app requests" seam:
@@ -42,15 +40,5 @@ Draft for audit. Not tagged and not published: `package.json` stays at 0.1.2 unt
   object whose `refused` was an array no longer than the batch counted, so `{ stored: 0, refused: [] }` for a
   3-event batch counted all 3 accepted. Any other 200 body is unavailable: retried with the same batchId and
   event ids, then one counted drop. 4xx refusals are unchanged (never retried).
-- **S9 part 3 (Platform KA 1747), still PROPOSED, not tagged — Rello's registry entries:**
-  - `FEATURES.rello` registers eleven keys, one per signed-in server action Growth reads: `leads.create`,
-    `leads.import`, `leads.export`, `leads.stage-change`, `leads.note-create`, `tasks.create`,
-    `campaigns.create`, `campaigns.launch`, `journeys.enroll`, `nurture.reengage-enroll`, `milo.chat`. Every
-    other app still registers none, so its `feature.used` is still refused.
-  - `ROUTES.rello` adds nine in-app screen templates, sent as `screen.opened` by Rello's server pages:
-    `/leads`, `/campaigns`, `/campaigns/[id]`, `/conversations`, `/calendar`, `/team`, `/apps`, `/broker`,
-    `/realtor-prospects/[id]`. The seven earlier templates are unchanged and keep their order.
-  - Registry only: `dist/script/s.js` is unchanged (it reads templates from the tag's `data-routes`).
-  - The `src/server.ts` header now describes the GD-3047 200 rule (comment only).
 
 Earlier releases (v0.1.0, v0.1.1, v0.1.2) are described in their commit messages and the README.
