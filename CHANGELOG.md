@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
+
+- **The page script sends only `page.view` on `spoke_public`** (plan §3.3 item 4). On that surface it no longer
+  installs the scroll, `IntersectionObserver` (`[data-section]`), click (`[data-cta]` / `[data-widget]`) or
+  `pagehide` listeners, so `scroll.depth`, `section.read`, `cta.click`, `widget.use` and `page.leave` cannot be
+  sent from a client portal. `page.view` on load and on an in-page route change is unchanged.
+- `marketing`, `tenant_site` and `in_app` are unchanged: the same listeners, and the same batches for the same
+  actions (differential replay of the v0.3.0 bundle against this one).
+- `dist/script/s.js` changes: sha256 `379d161e125917478bbfa118767e5df5b25370aa1d7bc18d4ac62db0da07b01d`, 6546 B,
+  3001 B gzip (limit 3072). The engine must re-pin and re-embed it after the tag.
+
 ## v0.3.0 — 2026-11-23 (S9 part 3, Platform KA prompt 1747; #3)
 
 Rello's registry entries:

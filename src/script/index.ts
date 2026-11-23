@@ -8,6 +8,9 @@
  * - `data-routes`: on spoke_public / in_app, the app's registered route templates,
  *   space-separated. The path sent is the matched template, never the URL; with no
  *   match no path is sent (§3.2).
+ *
+ * On spoke_public the script sends only `page.view` (on load and on an in-page route
+ * change): no scroll, section, click or pagehide listener is installed (§3.3 item 4).
  */
 import { createTransport, matchTemplate, type ClientEvent } from "./core.js";
 
@@ -34,6 +37,9 @@ const safe =
     const templated = surface === "spoke_public" || surface === "in_app";
     const routes = (tag?.dataset.routes || "").split(" ").filter(Boolean);
     const published = surface === "marketing" || surface === "tenant_site";
+    // Plan §3.3 item 4 (GD-3035): pages a tenant's clients use send page.view and nothing else, so on
+    // spoke_public none of the scroll / section / click / pagehide listeners below is installed.
+    const full = surface !== "spoke_public";
     let st: Storage | undefined;
     try {
       st = w.localStorage;
@@ -89,7 +95,7 @@ const safe =
     // section.read: a [data-section] at least 50 % visible for at least 4 s, once per page
     const read: Record<string, 1> = {};
     const waits = new Map<Element, number>();
-    if ("IntersectionObserver" in w) {
+    if (full && "IntersectionObserver" in w) {
       const io = new IntersectionObserver(
         safe((entries: IntersectionObserverEntry[]) => {
           for (const en of entries) {
@@ -125,7 +131,7 @@ const safe =
     }
 
     // cta.click and widget.use: attributes only, never a value or text
-    d.addEventListener(
+    if (full) d.addEventListener(
       "click",
       safe((ev: Event) => {
         const el = ev.target instanceof Element ? ev.target : null;
@@ -167,7 +173,7 @@ const safe =
     wrap("replaceState");
     w.addEventListener("popstate", () => onNav(true));
 
-    w.addEventListener("scroll", onScroll, { passive: true });
+    if (full) w.addEventListener("scroll", onScroll, { passive: true });
     d.addEventListener(
       "visibilitychange",
       safe(() => {
@@ -178,7 +184,7 @@ const safe =
         } else visibleSince = Date.now();
       }),
     );
-    w.addEventListener(
+    if (full) w.addEventListener(
       "pagehide",
       safe(() => {
         if (visibleSince) visibleMs += Date.now() - visibleSince;
