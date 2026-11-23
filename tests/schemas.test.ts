@@ -127,3 +127,35 @@ describe("package guards (§3.3 item 5)", () => {
     expect(findNonStrictObjects(bad)).toEqual(["inner"]);
   });
 });
+
+describe("S12b: page.view's pageId and nav, and the edge-written adClick (DESIGN-TRACKING-S12 §8 Rev 3, §5.1)", () => {
+  const PV = VALID["page.view"]!;
+  const PAGE = "3f0e8a52-6d1b-4c1e-9a77-2b9d6c0f4e11";
+  test.each(["marketing", "tenant_site"])("%s: a page.view may carry pageId and nav (load | spa)", (surface) => {
+    for (const nav of ["load", "spa"]) expect(parseEvent({ ...PV, ...common({ surface }), pageId: PAGE, nav }).ok).toBe(true);
+  });
+  test.each(["spoke_public", "in_app"])("%s: pageId and nav are refused (no ads on portals or in-app, §3.4)", (surface) => {
+    const base = { name: "page.view", ...common({ surface }), pageType: "portal" };
+    expect(parseEvent(base).ok).toBe(true);
+    expect(parseEvent({ ...base, pageId: PAGE }).ok).toBe(false);
+    expect(parseEvent({ ...base, nav: "load" }).ok).toBe(false);
+  });
+  test("nav outside load | spa, or a pageId that is not an id, is refused", () => {
+    expect(parseEvent({ ...PV, pageId: PAGE, nav: "reload" }).ok).toBe(false);
+    expect(parseEvent({ ...PV, pageId: "a b", nav: "load" }).ok).toBe(false);
+  });
+  test.each(["visit.start", "link.hit"])("%s: adClick holds up to 4 unique kinds of the four keys", (name) => {
+    const ok = [{ kind: "gclid", id: "Cj0KCQiA_abc" }, { kind: "fbclid", id: "IwAR0abcdefgh" }];
+    expect(parseEvent({ ...VALID[name], adClick: ok }).ok).toBe(true);
+    expect(parseEvent({ ...VALID[name], adClick: [{ kind: "utm", id: "Cj0KCQiA_abc" }] }).ok).toBe(false);
+    expect(parseEvent({ ...VALID[name], adClick: [ok[0], ok[0]] }).ok).toBe(false);
+    expect(parseEvent({ ...VALID[name], adClick: [{ kind: "gclid", id: "short" }] }).ok).toBe(false);
+    expect(parseEvent({ ...VALID[name], adClick: [] }).ok).toBe(false);
+  });
+  test("the new fields keep every string bounded and every object strict", () => {
+    for (const n of ["page.view", "visit.start", "link.hit"] as const) {
+      expect(findUnboundedStrings(EVENT_SCHEMAS[n]), n).toEqual([]);
+      expect(findNonStrictObjects(EVENT_SCHEMAS[n]), n).toEqual([]);
+    }
+  });
+});

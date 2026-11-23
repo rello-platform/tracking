@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased (S12b package half, Platform KA prompt 1784) — DRAFT
+
+The page script's ads hook is NOT in this change: it does not fit the 3,072 B gzip guard (see the PR). This is
+everything else in the package half, so the engine half can build against it.
+
+- **Client events** (`CLIENT_EVENT_SCHEMAS`, `parseClientEvent`): `landing.adclick {pageId, params}` and
+  `ads.decision {pageId, reason}`. They are what the page script sends; the edge transforms them. The 12 stored
+  events are unchanged in number.
+- **Stored schema fields** (all optional):
+  - `page.view.pageId` / `page.view.nav` (`load` | `spa`), accepted on `marketing` and `tenant_site` only;
+  - `visit.start.adClick` / `link.hit.adClick`, written by the edge: 1–4 `{kind, id}`, unique kinds.
+- **`/t/c` strips the four ad-click keys** as well as `rg` and `r`; every other key is kept.
+- **Constants:** `AD_CLICK_KEYS`, `AD_CLICK_VALUE`, `ADS_REASONS`, `ADS_VENDORS` (empty), `RTK_LETTERS`
+  (`t`, `c`, `p`), `RTK_RESERVED_LETTERS` (`f`), `ADS_LOADER_PATH` (`/t/a.v1.js`).
+- **The loader body:** `adsLoaderScript` / `adsNoTagScript` (≤ 2 KB gzip, its own test).
+- **Build test:** `dist/script/s*.js` carries no vendor hostname.
+- `dist/script/s.js` is byte-identical to v0.3.1 (sha256 `379d161e…`).
+- README install line now names `#v0.3.1`.
+
 ## v0.3.1 — 2026-11-23 (S10, Platform KA prompts 1775 and 1781; GD-3035; #5)
 
 - **The page script sends only `page.view` on `spoke_public`** (plan §3.3 item 4). On that surface it no longer
