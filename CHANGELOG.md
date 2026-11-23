@@ -35,5 +35,12 @@ Draft for audit. Not tagged and not published: `package.json` stays at 0.1.2 unt
     Worker's `waitUntil` keeps it alive with no later request. `options.defer` still takes the timer's send.
   - A runtime whose `setTimeout` throws no longer strands the event: `track()` sends at once instead, and an
     attempt that cannot arm its 2 s timer counts as unavailable.
+- **Fix round (AUDIT 138 GD-3047, Platform KA prompt 1752), still PROPOSED, not tagged:** a 200 counts only
+  when its body is exactly the spec's partial answer (§4 step 8): `stored` a non-negative integer; `refused` a
+  non-empty array of `{ i, reason }`, each `i` a distinct integer with `0 ≤ i < events`, each `reason` a
+  non-empty string; no other key at the top or on an entry; `stored + refused.length === events`. Before, any
+  object whose `refused` was an array no longer than the batch counted, so `{ stored: 0, refused: [] }` for a
+  3-event batch counted all 3 accepted. Any other 200 body is unavailable: retried with the same batchId and
+  event ids, then one counted drop. 4xx refusals are unchanged (never retried).
 
 Earlier releases (v0.1.0, v0.1.1, v0.1.2) are described in their commit messages and the README.

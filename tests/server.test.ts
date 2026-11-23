@@ -466,6 +466,100 @@ describe("GD-3041: a 200 whose body can't be read, or isn't the spec's shape, is
   });
 });
 
+// ── fix round 1752: AUDIT 138 GD-3047 (a 200 counts only when its body is exactly the spec's partial answer) ──
+
+describe("GD-3047: a 200 counts only when its body is exactly { stored, refused: [{ i, reason }] } for this batch", () => {
+  // Every body below is for a 3-event batch. Each case is built so that the rule it names is the only rule it
+  // breaks wherever that is possible, so dropping one check reddens its own case (JS addition is why some cases
+  // look odd: `true + 2 === 3` and `null + 3 === 3` pass a sum check, so only the stored check catches them).
+  const R = (i: unknown, reason: unknown = "feature.used: feature: not registered") => ({ i, reason });
+  const cases: Array<[string, unknown]> = [
+    ["stored missing", { refused: [R(0)] }],
+    ["stored a string", { stored: "2", refused: [R(0)] }],
+    ["stored negative", { stored: -1, refused: [R(0), R(1), R(2)] }],
+    ["stored not an integer", { stored: 1.5, refused: [R(0)] }],
+    ["stored a boolean that JS addition makes sum to the batch (true + 2 = 3)", { stored: true, refused: [R(0), R(1)] }],
+    ["stored null that JS addition makes sum to the batch (null + 3 = 3)", { stored: null, refused: [R(0), R(1), R(2)] }],
+    ["a null refusal entry", { stored: 2, refused: [null] }],
+    ["a refusal entry that is not an object", { stored: 2, refused: [0] }],
+    ["a refusal entry without reason", { stored: 2, refused: [{ i: 0 }] }],
+    ["a refusal entry whose reason is empty", { stored: 2, refused: [R(0, "")] }],
+    ["a refusal entry whose reason is not a string", { stored: 2, refused: [R(0, 7)] }],
+    ["a refusal entry without i", { stored: 2, refused: [{ reason: "x" }] }],
+    ["a refusal entry whose i is not an integer", { stored: 2, refused: [R(0.5)] }],
+    ["a refusal entry whose i is a string", { stored: 2, refused: [R("0")] }],
+    ["i out of range (i = events)", { stored: 2, refused: [R(3)] }],
+    ["i out of range (negative)", { stored: 2, refused: [R(-1)] }],
+    ["duplicate i", { stored: 1, refused: [R(0), R(0)] }],
+    ["stored + refused != events: { stored: 0, refused: [] }", { stored: 0, refused: [] }],
+    ["stored + refused != events: stored too high", { stored: 5, refused: [R(0)] }],
+    ["stored + refused != events: stored too low", { stored: 0, refused: [R(0)] }],
+    ["an empty refused list (a 200 is a partial answer; all stored is a 204)", { stored: 3, refused: [] }],
+    ["an extra top-level key (the spec's body is exactly these two keys)", { stored: 2, refused: [R(0)], error: "x" }],
+    ["an extra key on a refusal entry", { stored: 2, refused: [{ i: 0, reason: "x", code: "y" }] }],
+    ["refused not an array but an object with a length", { stored: 2, refused: { length: 1 } }],
+  ];
+  for (const [label, body] of cases) {
+    test(`${label}: retried with the same batchId and event ids, then one counted drop`, async () => {
+      const f = stubFetch([twoHundred({ raw: JSON.stringify(body) })]);
+      const { tracker, logs } = make(f.fn);
+      for (let i = 0; i < 3; i++) tracker.track(feature());
+      const p = tracker.flush();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(await p).toEqual({ accepted: 0, refused: 0, dropped: 3 });
+      expect(f.calls).toHaveLength(4);
+      expect(new Set(f.calls.map((c) => c.body.batchId)).size).toBe(1);
+      expect(new Set(f.calls.map((c) => c.body.events.map((e) => e.id).join(","))).size).toBe(1);
+      expect(logs.filter((l) => l.startsWith("tracking_events_dropped"))).toEqual([
+        "tracking_events_dropped app=rello count=3 reason=unavailable attempts=4 last_status=200 names=feature.used:3",
+      ]);
+      expect(logs.filter((l) => l.startsWith("tracking_events_refused"))).toEqual([]);
+      expect(tracker.stats()).toMatchObject({ accepted: 0, refused: 0, droppedUnavailable: 3, inFlight: 0 });
+    });
+  }
+
+  const valid: Array<[string, unknown, { accepted: number; refused: number }]> = [
+    ["one refused", { stored: 2, refused: [R(1)] }, { accepted: 2, refused: 1 }],
+    ["two refused, out of order", { stored: 1, refused: [R(2), R(0)] }, { accepted: 1, refused: 2 }],
+    ["all three refused (stored 0)", { stored: 0, refused: [R(0), R(1), R(2)] }, { accepted: 0, refused: 3 }],
+  ];
+  for (const [label, body, want] of valid) {
+    test(`control: a valid partial answer is counted, one attempt (${label})`, async () => {
+      const f = stubFetch([twoHundred({ raw: JSON.stringify(body) })]);
+      const { tracker, logs } = make(f.fn);
+      for (let i = 0; i < 3; i++) tracker.track(feature());
+      const p = tracker.flush();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(await p).toEqual({ ...want, dropped: 0 });
+      expect(f.calls).toHaveLength(1);
+      expect(logs.filter((l) => l.startsWith("tracking_events_dropped"))).toEqual([]);
+      expect(tracker.stats()).toMatchObject({ ...want, droppedUnavailable: 0, inFlight: 0 });
+    });
+  }
+
+  test("control: a 4xx refusal is still never retried, whatever its body", async () => {
+    const f = stubFetch([{ status: 422, body: { error: "TRACKING_EVENTS_REFUSED", stored: 0, refused: [null] } }]);
+    const { tracker } = make(f.fn);
+    for (let i = 0; i < 3; i++) tracker.track(feature());
+    const p = tracker.flush();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(await p).toEqual({ accepted: 0, refused: 3, dropped: 0 });
+    expect(f.calls).toHaveLength(1);
+  });
+
+  test("an invalid 200 then a valid partial answer: the retry is counted from the valid body, nothing twice", async () => {
+    const f = stubFetch([twoHundred({ raw: JSON.stringify({ stored: 0, refused: [] }) }), twoHundred({ raw: JSON.stringify({ stored: 2, refused: [R(0)] }) })]);
+    const { tracker } = make(f.fn);
+    for (let i = 0; i < 3; i++) tracker.track(feature());
+    const p = tracker.flush();
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
+    expect(await p).toEqual({ accepted: 2, refused: 1, dropped: 0 });
+    expect(f.calls).toHaveLength(2);
+    expect(f.calls[1]!.body).toEqual(f.calls[0]!.body);
+    expect(tracker.stats()).toMatchObject({ accepted: 2, refused: 1, droppedUnavailable: 0 });
+  });
+});
+
 describe("GD-3042: a per-call defer keeps the timed send alive", () => {
   test("one event, a per-call defer and no later request: the defer gets a promise and the send happens at 10 s", async () => {
     const f = stubFetch([204]);

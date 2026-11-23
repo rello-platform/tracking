@@ -168,11 +168,20 @@ export interface Tracker {
 /** Classify an answer. Only "unavailable" is retried. */
 export declare function classifyStatus(status: number): "accepted" | "refused" | "unavailable";
 /**
- * GD-3041 (AUDIT 138, KA 1743): the refused count of a 200 partial answer
- * `{ stored, refused: [{ i, reason }] }` for a batch of `events`, or `null` when the body is not
- * that shape (not an object, `refused` not an array, or more refusals than events sent). `null`
- * means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried, never
- * counted accepted.
+ * The refused count of a 200 partial answer for a batch of `events`, or `null` when the body is not
+ * EXACTLY the spec's partial answer (SPEC-S9-ENGINE-SERVER-INTAKE §4 step 8, Rev 1743):
+ *
+ *   `{ "stored": <int>, "refused": [{ "i": <int>, "reason": <string> }, …] }`
+ *
+ * - `stored` a non-negative integer;
+ * - `refused` a non-empty array (all stored is a 204, not a 200) of `{ i, reason }`, each `i` an integer
+ *   with `0 ≤ i < events` and no `i` twice, each `reason` a non-empty string;
+ * - no other key, at the top or on an entry ("exactly");
+ * - `stored + refused.length === events`.
+ *
+ * `null` means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried with the
+ * same batchId and event ids, then one counted drop; never counted accepted. GD-3041 (AUDIT 138, KA 1743)
+ * added the unreadable-body and refused-array checks; GD-3047 (AUDIT 138, KA 1752) the rest.
  */
 export declare function partialRefusedCount(body: unknown, events: number): number | null;
 export declare function createTracker(options: TrackerOptions): Tracker;

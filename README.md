@@ -91,8 +91,8 @@ tracker.track({ name: "screen.opened", tenantId, route: "/leads/[id]" });
 |---|---|
 | Validation | `EVENT_SCHEMAS` + `FEATURES` / `ROUTES`. An unregistered feature or route is dropped and counted, never sent. |
 | Batching | In-process buffer; a send every ≤ 10 s, or at once at 100 events. ≤ 100 events per `POST <engine>/v1/events`. |
-| Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx, or a 200 whose body can't be read or isn't `{ stored, refused: [...] }` with no more refusals than events): at 2 s, 10 s and 30 s, always the same batchId and event ids. A refusal (other 4xx) is never retried. |
-| Partial answer | 200 `{ stored, refused: [{ i, reason }] }`: `refused.length` counted refused, the rest accepted, no retry. |
+| Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx, or a 200 whose body can't be read or isn't exactly the partial answer below): at 2 s, 10 s and 30 s, always the same batchId and event ids. A refusal (other 4xx) is never retried. |
+| Partial answer | 200 with exactly `{ stored, refused: [{ i, reason }] }` and no other key: `stored` a non-negative integer, `refused` non-empty, each `i` a distinct integer in `0 ≤ i < events`, each `reason` a non-empty string, and `stored + refused.length = events`. Then `refused.length` is counted refused, the rest accepted, no retry. Any other 200 body is unavailable. |
 | Drop | After the 4th attempt: one line `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 …`. |
 | Logs | App, event names, counts, reasons and statuses only, never a field value. |
 | Host hook | `track(e, { defer })`: Next.js `after`, or a Worker's `ctx.waitUntil` (pass it per call: a ctx is per request). Every call hands `defer` a promise: the send it starts, or, if it only buffered, the 10 s timed send. So one event on a Worker with no later request is still sent at 10 s. On a Worker, `waitUntil` lasts 30 s after the response; a timed send that also needs retries can outlast it (10 s + up to ~38 s of attempts), and the cut-off retries end without a drop line. |

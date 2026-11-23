@@ -91,18 +91,48 @@ export function classifyStatus(status) {
         return "unavailable";
     return "refused";
 }
+/** Exactly these keys, each present once: the spec's body has no other. */
+const hasExactKeys = (o, keys) => {
+    const own = Object.keys(o);
+    return own.length === keys.length && keys.every((k) => Object.prototype.hasOwnProperty.call(o, k));
+};
+const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 /**
- * GD-3041 (AUDIT 138, KA 1743): the refused count of a 200 partial answer
- * `{ stored, refused: [{ i, reason }] }` for a batch of `events`, or `null` when the body is not
- * that shape (not an object, `refused` not an array, or more refusals than events sent). `null`
- * means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried, never
- * counted accepted.
+ * The refused count of a 200 partial answer for a batch of `events`, or `null` when the body is not
+ * EXACTLY the spec's partial answer (SPEC-S9-ENGINE-SERVER-INTAKE §4 step 8, Rev 1743):
+ *
+ *   `{ "stored": <int>, "refused": [{ "i": <int>, "reason": <string> }, …] }`
+ *
+ * - `stored` a non-negative integer;
+ * - `refused` a non-empty array (all stored is a 204, not a 200) of `{ i, reason }`, each `i` an integer
+ *   with `0 ≤ i < events` and no `i` twice, each `reason` a non-empty string;
+ * - no other key, at the top or on an entry ("exactly");
+ * - `stored + refused.length === events`.
+ *
+ * `null` means the helper cannot know what was stored, so the batch is UNAVAILABLE and retried with the
+ * same batchId and event ids, then one counted drop; never counted accepted. GD-3041 (AUDIT 138, KA 1743)
+ * added the unreadable-body and refused-array checks; GD-3047 (AUDIT 138, KA 1752) the rest.
  */
 export function partialRefusedCount(body, events) {
-    if (body === null || typeof body !== "object" || Array.isArray(body))
+    if (!isPlainObject(body) || !hasExactKeys(body, ["stored", "refused"]))
         return null;
-    const refused = body.refused;
-    if (!Array.isArray(refused) || refused.length > events)
+    const { stored, refused } = body;
+    if (typeof stored !== "number" || !Number.isInteger(stored) || stored < 0)
+        return null;
+    if (!Array.isArray(refused) || refused.length === 0 || refused.length > events)
+        return null;
+    const seen = new Set();
+    for (const entry of refused) {
+        if (!isPlainObject(entry) || !hasExactKeys(entry, ["i", "reason"]))
+            return null;
+        const { i, reason } = entry;
+        if (typeof i !== "number" || !Number.isInteger(i) || i < 0 || i >= events || seen.has(i))
+            return null;
+        if (typeof reason !== "string" || reason.length === 0)
+            return null;
+        seen.add(i);
+    }
+    if (stored + refused.length !== events)
         return null;
     return refused.length;
 }
@@ -173,8 +203,9 @@ export function createTracker(options) {
                 return { kind: "accepted", refused: 0 };
             // 200 = partly refused: `{ stored, refused: [...] }`. GD-3041 (AUDIT 138, KA 1743): a 200 whose
             // body can't be read (the 2 s deadline firing mid-body, a network drop, invalid JSON) or isn't
-            // that shape is UNAVAILABLE, never accepted. The same batch is retried (same batchId and event
-            // ids; the engine dedupes by id, so a resend is safe).
+            // exactly that shape (GD-3047, KA 1752: see partialRefusedCount) is UNAVAILABLE, never accepted.
+            // The same batch is retried (same batchId and event ids; the engine dedupes by id, so a resend
+            // is safe).
             let parsed;
             try {
                 parsed = await res.json();
