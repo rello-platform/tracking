@@ -38,10 +38,14 @@ type Registry = {
  */
 export declare const ROUTES: Registry;
 /**
- * Registered features. v0.1.0 registers none: S9 adds each app's features, and S11
- * adds `upsell.<seam>.<event>` keys, each in a reviewed release. Until then every
- * `feature.used` is refused, which is the intended state for a vocabulary nobody has
- * reviewed yet.
+ * Registered features. v0.1.x registered none. S9 adds each app's features, and S11
+ * adds `upsell.<seam>.<event>` keys, each in a reviewed release. An app with nothing
+ * registered has every `feature.used` refused, which is the intended state for a
+ * vocabulary nobody has reviewed yet.
+ *
+ * S9 part 3 (Platform KA 1747) registers Rello's first eleven: one per signed-in server
+ * action Growth reads, each sent once after that action's own write succeeds. A key names
+ * the action only: no lead, client, campaign or user value can be a feature.
  */
 export declare const FEATURES: Registry;
 /** Match a pathname against templates; each `[param]` matches exactly one segment. */

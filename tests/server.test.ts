@@ -14,8 +14,8 @@ import {
 } from "../src/server";
 import { RELLO, VALID } from "./fixtures";
 
-// A fixture feature registry: the package's own FEATURES registers none yet (S9 adds each app's
-// in its own release), so an accepted feature.used needs one.
+// A fixture feature registry, so these tests do not depend on what a release registers (S9 part 3
+// registers Rello's own; the package-registry case below checks that).
 const FEATURES_FIXTURE = Object.fromEntries(APP_SLUGS.map((a) => [a, a === RELLO ? ["leads.create"] : []])) as {
   readonly [A in AppSlug]: readonly string[];
 };
@@ -272,12 +272,14 @@ describe("only registered values leave the process (plan §3.3)", () => {
     expect(tracker.stats().droppedAtTrack).toEqual({ unregistered_route: 2 });
   });
 
-  test("the package's own FEATURES (none registered yet) refuses every feature.used", async () => {
+  test("the package's own FEATURES refuses a feature.used it does not register (S9 part 3: Rello registers its own)", async () => {
     const f = stubFetch([204]);
     const { tracker } = make(f.fn, { schemas: undefined });
+    tracker.track(feature({ feature: "leads.not-registered" }));
     tracker.track(feature());
     await tracker.flush();
-    expect(f.calls).toHaveLength(0);
+    expect(f.calls).toHaveLength(1);
+    expect(f.calls[0]!.body.events.map((e) => e.feature)).toEqual(["leads.create"]);
     expect(tracker.stats().droppedAtTrack).toEqual({ unregistered_feature: 1 });
   });
 

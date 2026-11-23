@@ -36,7 +36,10 @@ describe("matchRoute (§3.2): each [param] matches exactly one segment", () => {
     expect(matchRoute("/c/8f2k3j4h5g6a7b8c9d0e", t)).toBe("/c/[token]");
   });
   test("no match for extra, missing or empty segments", () => {
-    expect(matchRoute("/leads", t)).toBeUndefined();
+    // "/leads" itself is a registered screen since S9 part 3, so the missing-segment case is
+    // checked against "/leads/[id]" alone: the rule is about the [param], not about the registry.
+    expect(matchRoute("/leads", ["/leads/[id]"])).toBeUndefined();
+    expect(matchRoute("/leads", t)).toBe("/leads");
     expect(matchRoute("/leads/", t)).toBeUndefined();
     expect(matchRoute("/leads/a/b", t)).toBeUndefined();
     expect(matchRoute("leads/a", t)).toBeUndefined();

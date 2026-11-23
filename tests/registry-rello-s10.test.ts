@@ -32,7 +32,7 @@ describe("Rello's S10 templates", () => {
   test("all four are registered for rello, and the v0.1.1 templates are all still there", () => {
     for (const t of S10_TEMPLATES) expect(ROUTES[RELLO], t).toContain(t);
     for (const t of ["/leads/[id]", "/c/[token]", "/d/[token]"]) expect(ROUTES[RELLO], t).toContain(t);
-    expect(ROUTES[RELLO]).toHaveLength(7);
+    expect(ROUTES[RELLO]).toHaveLength(16); // 7 through S10, + 9 in-app screens in S9 part 3
   });
 
   test("each passes ROUTE_TEMPLATE_GRAMMAR", () => {

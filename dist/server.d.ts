@@ -14,8 +14,8 @@
  *   - Events buffer in process and are sent every ≤ 10 s, or at once when 100 are waiting,
  *     whichever comes first. One send is one POST of ≤ 100 events to `<engine>/v1/events`.
  *   - Each attempt has a 2 s timeout. Only an UNAVAILABLE answer is retried (no answer, a timeout,
- *     429, or 5xx, or a 200 whose body can't be read or isn't `{ stored, refused: [...] }` with no
- *     more refusals than events sent), up to 3 times over about 30 s (at 2 s, 10 s and 30 s), always
+ *     429, or 5xx, or a 200 whose body can't be read or isn't exactly the spec's partial answer, see
+ *     `partialRefusedCount`), up to 3 times over about 30 s (at 2 s, 10 s and 30 s), always
  *     the same batch (same batchId and event ids). A refusal (any other 4xx) is never retried. After the last retry the batch is dropped with ONE counted log line:
  *     `tracking_events_dropped app=<slug> count=<n> reason=unavailable attempts=4 names=<name>:<n>,…`
  *   - Log lines carry the app slug, event names, counts, reasons and HTTP statuses only: never a
