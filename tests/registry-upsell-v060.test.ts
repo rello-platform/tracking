@@ -10,6 +10,13 @@
 //   - FAMILY: @rello-platform/signals v0.41.0 (the tag Rello pins) registers `<app>.upsell.` as a PREFIX FAMILY
 //     for the eight UPSELL_SOURCE_APPS, and names no seam or event: seams and events come from the two above.
 //   - CONVERTED: Rello's CONVERTED_SIGNAL_PATTERN (src/lib/billing/trial-start/converted-signal.ts:45).
+//   - SURFACES (KA 1885, which widens the vocabulary): every <surface>.<event> pair an app emits on its main today,
+//     the three surfaces every source app emits (PAIRS in each spoke's src/lib/upsell/telemetry.ts @ HH f3db5cabe
+//     :31-33, HR 1f58e9da3 :74-76, HS 1b9ee6afa :75-77, NS afb8bd3fb :37-39, OHH dbad16a3a :75-77, MI-NEW e258e9c54
+//     :74-76, PFP 511d19114 :69-71, TD 960ea5e62 :22-24) plus `converted` on upgrade-page, which Rello's trial-start
+//     writes for any source (src/lib/upsell/seam-registry.ts UPGRADE_PAGE_SEAM; converted-signal.ts);
+//     and Pathfinder Pro's 14 locked-feature surfaces with LOCK_EVENTS (PFP telemetry.ts:45 and :74 @ 511d19114;
+//     slugs: @rello-platform/upgrade-content v0.14.1 src/pfp.ts:32-47, the tag PFP pins).
 // Each app is keyed by its canonical slug from @rello-platform/slugs, by index with `satisfies`.
 import { describe, expect, test } from "vitest";
 import { APP_SLUGS, type AppSlug } from "@rello-platform/slugs";
@@ -40,14 +47,40 @@ const SEAMS: Record<string, readonly string[]> = {
   [THE_DRUMBEAT]: ["auto-task-hot-lead", "full-timeline", "pages-create-custom"],
 };
 
+/** The three surfaces every one of the eight emits, and the events each one carries (converted: Rello writes it for upgrade-page). */
+const COMMON_SURFACES: Record<string, readonly string[]> = {
+  "menu-item": ["shown", "clicked"],
+  "trial-banner": ["shown"],
+  "upgrade-page": ["shown", "clicked", "converted"],
+};
+
+/** Pathfinder Pro's locked-feature surfaces (upgrade-content v0.14.1 pfp.ts:32-47) and the events PFP emits for each (LOCK_EVENTS). */
+const PFP_LOCKED = [
+  "call-workstation", "quick-quote", "hecm-advisor", "va-advisor", "dscr-advisor", "bank-statement-advisor", "pre-approval-letter",
+  "events", "loan-programs", "exports", "check-your-rate", "refi-radar", "rate-widget", "email-signature",
+] as const;
+const LOCK_EVENTS = ["shown", "clicked", "preview-opened", "preview-explored", "blocked-hint", "dismissed"] as const;
+
 const EIGHT = Object.keys(SEAMS) as AppSlug[];
+
+/** Every surface an app registers, and the events of each: its seams (5 events), the three common surfaces, and for pathfinder-pro the 14 locked-feature surfaces. */
+const surfacesOf = (app: string): Record<string, readonly string[]> => ({
+  ...Object.fromEntries(SEAMS[app].map((seam) => [seam, EVENTS as readonly string[]])),
+  ...COMMON_SURFACES,
+  ...(app === PATHFINDER_PRO ? Object.fromEntries(PFP_LOCKED.map((slug) => [slug, LOCK_EVENTS as readonly string[]])) : {}),
+});
 
 /** The hub signal name for (app, seam, event): what a spoke writes to AuditLog today. */
 const hubName = (app: string, seam: string, event: string) => `${app}.upsell.${seam}.${event}`;
 /** Rello's converted-signal shape, copied from converted-signal.ts:45. */
 const CONVERTED = /^[a-z0-9]+(?:-[a-z0-9]+)*\.upsell\.[a-z0-9]+(?:-[a-z0-9]+)*\.converted$/;
 
-const expectedKeys = (app: string) => SEAMS[app].flatMap((seam) => EVENTS.map((event) => `upsell.${seam}.${event}`));
+const keysOf = (surfaces: Record<string, readonly string[]>) => Object.entries(surfaces).flatMap(([surface, events]) => events.map((event) => `upsell.${surface}.${event}`));
+const seamKeys = (app: string) => SEAMS[app].flatMap((seam) => EVENTS.map((event) => `upsell.${seam}.${event}`));
+const commonKeys = keysOf(COMMON_SURFACES);
+const lockKeys = PFP_LOCKED.flatMap((slug) => LOCK_EVENTS.map((event) => `upsell.${slug}.${event}`));
+/** Every key an app registers, in registry order: seams, then the common surfaces, then pathfinder-pro's locked-feature surfaces. */
+const expectedKeys = (app: string) => [...seamKeys(app), ...commonKeys, ...(app === PATHFINDER_PRO ? lockKeys : [])];
 const upsellOf = (app: AppSlug) => FEATURES[app].filter((k) => k.startsWith("upsell."));
 
 const featureOk = (app: string, feature: string) =>
@@ -75,13 +108,44 @@ describe("the eight upsell source apps register their upsell keys", () => {
     for (const app of EIGHT) expect(SEAMS[app].length, app).toBe(app === PATHFINDER_PRO ? 4 : 3);
   });
 
-  test("each app registers exactly seam × event, 5 events per seam: 15 keys (pathfinder-pro 20), 125 in all", () => {
+  test("each app registers exactly its seams × 5 events, the three common surfaces and (pathfinder-pro) the 14 locked-feature surfaces, in that order", () => {
     for (const app of EIGHT) expect(upsellOf(app), app).toEqual(expectedKeys(app));
-    expect(EIGHT.reduce((n, a) => n + upsellOf(a).length, 0)).toBe(125);
+  });
+
+  test("the counts: 21 keys per app (pathfinder-pro 110), 257 in all; 125 of them are seam keys, 48 common-surface keys, 84 locked-feature keys", () => {
+    expect(commonKeys).toHaveLength(6);
+    expect(lockKeys).toHaveLength(84);
+    for (const app of EIGHT) expect(upsellOf(app).length, app).toBe(app === PATHFINDER_PRO ? 110 : 21);
+    expect(EIGHT.reduce((n, a) => n + upsellOf(a).length, 0)).toBe(257);
+    expect(EIGHT.reduce((n, a) => n + seamKeys(a).length, 0)).toBe(125);
+    expect(EIGHT.length * commonKeys.length).toBe(48);
+  });
+
+  test("every app registers the six common-surface keys, and only pathfinder-pro registers locked-feature keys", () => {
+    for (const app of EIGHT) {
+      for (const k of commonKeys) expect(FEATURES[app], `${app} ${k}`).toContain(k);
+      for (const k of lockKeys) (app === PATHFINDER_PRO ? expect(FEATURES[app], `${app} ${k}`).toContain(k) : expect(FEATURES[app], `${app} ${k}`).not.toContain(k));
+    }
+  });
+
+  test("the locked-feature table is 14 distinct slugs, none of them a seam or a common surface", () => {
+    expect(PFP_LOCKED).toHaveLength(14);
+    expect(new Set(PFP_LOCKED).size).toBe(14);
+    const taken = new Set<string>([...Object.keys(COMMON_SURFACES), ...EIGHT.flatMap((a) => SEAMS[a])]);
+    for (const slug of PFP_LOCKED) expect(taken.has(slug), slug).toBe(false);
   });
 
   test("every seam gets all five events, converted included", () => {
     for (const app of EIGHT) for (const seam of SEAMS[app]) for (const event of EVENTS) expect(FEATURES[app], `${app} ${seam} ${event}`).toContain(`upsell.${seam}.${event}`);
+  });
+
+  test("Growth's interest read finds its rows: every <surface>.clicked and upgrade-page.shown the apps emit is registered", () => {
+    for (const app of EIGHT) {
+      for (const surface of Object.keys(surfacesOf(app))) {
+        if ((surfacesOf(app)[surface] as readonly string[]).includes("clicked")) expect(FEATURES[app], `${app} ${surface}.clicked`).toContain(`upsell.${surface}.clicked`);
+      }
+      expect(FEATURES[app], app).toContain("upsell.upgrade-page.shown");
+    }
   });
 
   test("the upsell keys come after every earlier key: the v0.5.0 entries are a prefix", () => {
@@ -105,9 +169,15 @@ describe("the eight upsell source apps register their upsell keys", () => {
     for (const app of EIGHT) for (const k of FEATURES[app]) expect(k, `${app} ${k}`).not.toMatch(/audit|nudge/);
   });
 
-  test("a surface or event outside the table is not registered (menu-item, trial-banner, upgrade-page, a locked-feature surface, an unknown event)", () => {
+  test("a pair outside the table is still refused: an unlisted event on a listed surface, a locked-feature surface on a non-PFP app, an unknown surface", () => {
     for (const app of EIGHT) {
-      for (const k of ["upsell.menu-item.shown", "upsell.menu-item.clicked", "upsell.trial-banner.shown", "upsell.upgrade-page.shown", "upsell.upgrade-page.clicked", "upsell.quick-quote.shown", `upsell.${SEAMS[app][0]}.opened`, "upsell.shown", "upsell"]) {
+      const refused = [
+        "upsell.menu-item.dismissed", "upsell.menu-item.converted", "upsell.trial-banner.clicked", "upsell.trial-banner.converted",
+        "upsell.upgrade-page.dismissed", "upsell.upgrade-page.engaged", `upsell.${SEAMS[app][0]}.opened`,
+        "upsell.quick-quote.converted", "upsell.quick-quote.engaged", "upsell.not-a-surface.shown", "upsell.shown", "upsell",
+        ...(app === PATHFINDER_PRO ? [] : ["upsell.quick-quote.shown", "upsell.events.clicked"]),
+      ];
+      for (const k of refused) {
         expect(FEATURES[app], `${app} ${k}`).not.toContain(k);
         expect(featureOk(app, k), `${app} ${k}`).toBe(false);
       }
@@ -120,9 +190,21 @@ describe("every upsell key: accepted for its own app, refused for every other ap
     for (const app of EIGHT) for (const k of expectedKeys(app)) expect(featureOk(app, k), `${app} ${k}`).toBe(true);
   });
 
-  test("refused for every other app, the other seven and the three that sell nothing included", () => {
+  test("refused for every other app unless that app lists the same key: seam and locked-feature keys are one app's, the six common-surface keys are all eight's", () => {
     for (const app of EIGHT) {
       for (const k of expectedKeys(app)) {
+        for (const other of APP_SLUGS) {
+          if (other === app) continue;
+          const lists = (EIGHT as readonly string[]).includes(other) && expectedKeys(other).includes(k);
+          expect(featureOk(other, k), `${k} sent as ${other}`).toBe(lists);
+        }
+      }
+    }
+  });
+
+  test("the keys that are not shared are refused for every other app: all 125 seam keys and all 84 locked-feature keys", () => {
+    for (const app of EIGHT) {
+      for (const k of [...seamKeys(app), ...(app === PATHFINDER_PRO ? lockKeys : [])]) {
         for (const other of APP_SLUGS) {
           if (other === app) continue;
           expect(featureOk(other, k), `${k} sent as ${other}`).toBe(false);
@@ -141,9 +223,9 @@ describe("every upsell key: accepted for its own app, refused for every other ap
 });
 
 describe("the mapping to the hub name is exact and lossless, both ways", () => {
-  test("forward: the hub name minus '<app>.' is a registered key, for every app, seam and event", () => {
-    for (const app of EIGHT) for (const seam of SEAMS[app]) for (const event of EVENTS) {
-      const hub = hubName(app, seam, event);
+  test("forward: the hub name minus '<app>.' is a registered key, for every app, surface and event", () => {
+    for (const app of EIGHT) for (const [surface, events] of Object.entries(surfacesOf(app))) for (const event of events) {
+      const hub = hubName(app, surface, event);
       expect(hub.startsWith(`${app}.`), hub).toBe(true);
       expect(FEATURES[app], hub).toContain(hub.slice(app.length + 1));
     }
@@ -155,19 +237,26 @@ describe("the mapping to the hub name is exact and lossless, both ways", () => {
       for (const key of upsellOf(app)) {
         const hub = `${app}.${key}`;
         expect(hub.startsWith(`${app}.upsell.`), hub).toBe(true);
-        const m = /^upsell\.([a-z0-9]+(?:-[a-z0-9]+)*)\.([a-z]+)$/.exec(key);
+        const m = /^upsell\.([a-z0-9]+(?:-[a-z0-9]+)*)\.([a-z]+(?:-[a-z]+)*)$/.exec(key);
         expect(m, hub).not.toBeNull();
-        expect(SEAMS[app], hub).toContain(m![1]);
-        expect(EVENTS as readonly string[], hub).toContain(m![2]);
+        expect(Object.keys(surfacesOf(app)), hub).toContain(m![1]);
+        expect(surfacesOf(app)[m![1]], hub).toContain(m![2]);
         expect(hubName(app, m![1], m![2]), hub).toBe(hub);
       }
     }
   });
 
-  test("every converted key becomes the name Rello's trial-start writes", () => {
-    for (const app of EIGHT) for (const seam of SEAMS[app]) {
+  test("every converted key becomes the name Rello's trial-start writes, for each seam and for upgrade-page", () => {
+    for (const app of EIGHT) for (const seam of [...SEAMS[app], "upgrade-page"]) {
       expect(CONVERTED.test(`${app}.upsell.${seam}.converted`), `${app} ${seam}`).toBe(true);
       expect(FEATURES[app], `${app} ${seam}`).toContain(`upsell.${seam}.converted`);
+    }
+  });
+
+  test("the only converted keys are Rello's: one per seam and upgrade-page, none on a spoke-only surface", () => {
+    for (const app of EIGHT) {
+      const converted = upsellOf(app).filter((k) => k.endsWith(".converted"));
+      expect([...converted].sort(), app).toEqual([...SEAMS[app], "upgrade-page"].map((s) => `upsell.${s}.converted`).sort());
     }
   });
 });
@@ -182,5 +271,12 @@ describe("the registry grammar accepts every new key", () => {
       }
       expect(new Set(FEATURES[app]).size, `${app} features`).toBe(FEATURES[app].length);
     }
+  });
+
+  test("the longest upsell key is 58 characters, under the 80 cap", () => {
+    const all = EIGHT.flatMap((a) => upsellOf(a));
+    expect(all).toHaveLength(257);
+    expect(Math.max(...all.map((k) => k.length))).toBe(58);
+    expect(58).toBeLessThanOrEqual(FEATURE_KEY_MAX);
   });
 });

@@ -222,12 +222,57 @@ const UPSELL_SEAMS: { readonly [A in AppSlug]?: readonly string[] } = Object.fre
 });
 
 /**
- * v0.6.0 (U21, Platform KA 1884): an app's `upsell.<seam>.<event>` keys, seam by seam, five events each.
- * S11 sends a spoke's upsell telemetry as `feature.used` with `feature = "upsell.<seam>.<event>"`; the hub
- * name is `<app>.` in front of the key, so the mapping is exact in both directions.
+ * The three surfaces every one of the eight source apps emits besides its seams, and the events each carries
+ * (`PAIRS` in each spoke's src/lib/upsell/telemetry.ts on main: HH f3db5cabe :31-33, HR 1f58e9da3 :74-76,
+ * HS 1b9ee6afa :75-77, NS afb8bd3fb :37-39, OHH dbad16a3a :75-77, MarketIntel-NEW e258e9c54 :74-76,
+ * PFP 511d19114 :69-71, TD 960ea5e62 :22-24). `converted` on `upgrade-page` is Rello's: trial-start writes
+ * `<source>.upsell.upgrade-page.converted` for any source app (seam-registry.ts UPGRADE_PAGE_SEAM). Growth's
+ * interest read counts any surface's `.clicked` and `upgrade-page.shown` (upgrades-summary.ts:447-450 @ 9fd58f997).
+ */
+const UPSELL_COMMON_SURFACES: readonly (readonly [string, readonly string[]])[] = Object.freeze([
+  ["menu-item", ["shown", "clicked"]],
+  ["trial-banner", ["shown"]],
+  ["upgrade-page", ["shown", "clicked", "converted"]],
+]);
+
+/**
+ * Pathfinder Pro's locked-feature surfaces: `PFP_LOCKED_FEATURE_SLUGS` of @rello-platform/upgrade-content v0.14.1
+ * (src/pfp.ts:32-47, the tag PFP pins), each emitted with `LOCK_EVENTS` (PFP src/lib/upsell/telemetry.ts:45, wired
+ * for every slug at :74, @ 511d19114).
+ */
+const PFP_LOCKED_FEATURE_SURFACES = [
+  "call-workstation",
+  "quick-quote",
+  "hecm-advisor",
+  "va-advisor",
+  "dscr-advisor",
+  "bank-statement-advisor",
+  "pre-approval-letter",
+  "events",
+  "loan-programs",
+  "exports",
+  "check-your-rate",
+  "refi-radar",
+  "rate-widget",
+  "email-signature",
+] as const;
+const PFP_LOCK_EVENT_NAMES = ["shown", "clicked", "preview-opened", "preview-explored", "blocked-hint", "dismissed"] as const;
+
+/**
+ * v0.6.0 (U21, Platform KA 1884, widened by 1885): an app's `upsell.<surface>.<event>` keys. In order: Rello's seams of
+ * the app × five events; the three common surfaces; for pathfinder-pro, its 14 locked-feature surfaces × six events.
+ * S11 sends a spoke's upsell telemetry as `feature.used` with `feature = "upsell.<surface>.<event>"`; the hub name
+ * is `<app>.` in front of the key, so the mapping is exact in both directions.
  */
 function upsell(app: AppSlug): readonly string[] {
-  return (UPSELL_SEAMS[app] ?? []).flatMap((seam) => UPSELL_EVENT_NAMES.map((event) => `upsell.${seam}.${event}`));
+  const seams = UPSELL_SEAMS[app];
+  if (seams === undefined) return [];
+  const keys = seams.flatMap((seam) => UPSELL_EVENT_NAMES.map((event) => `upsell.${seam}.${event}`));
+  for (const [surface, events] of UPSELL_COMMON_SURFACES) for (const event of events) keys.push(`upsell.${surface}.${event}`);
+  if (app === PATHFINDER_PRO) {
+    for (const slug of PFP_LOCKED_FEATURE_SURFACES) for (const event of PFP_LOCK_EVENT_NAMES) keys.push(`upsell.${slug}.${event}`);
+  }
+  return keys;
 }
 
 /**
@@ -247,11 +292,11 @@ function upsell(app: AppSlug): readonly string[] {
  * keeps `intakes.create` (the app's own word, no save-lead keys); harvest-home registers both
  * `byol.upload` and `byol.commit`; home-scout's `settings.update` stays.
  *
- * v0.6.0 (U21, Platform KA 1884; plan marker S11B-KA1881) appends, for the eight apps that sell Rello an
- * upgrade, every `upsell.<seam>.<event>` key: Rello's seams of that app × shown, engaged, dismissed, clicked,
- * converted (see `upsell()` above). The v0.5.0 entries are unchanged and stay in front. Not registered: the
- * non-seam surfaces the spokes also emit (`menu-item`, `trial-banner`, `upgrade-page`, Pathfinder Pro's
- * locked-feature surfaces), because Rello's seam registry does not hold them (CHANGELOG, v0.6.0).
+ * v0.6.0 (U21, Platform KA 1884, widened by 1885; plan marker S11B-KA1881) appends, for the eight apps that sell
+ * Rello an upgrade, every `upsell.<surface>.<event>` key an app emits or Rello writes under its family: the app's
+ * seams × shown, engaged, dismissed, clicked, converted; menu-item, trial-banner and upgrade-page; and Pathfinder
+ * Pro's locked-feature surfaces (see `upsell()` above). The v0.5.0 entries are unchanged and stay in front. Not
+ * registered: `<app>.audit.upsell-nudge.*` (not part of S11).
  */
 export const FEATURES: Registry = registry({
   [RELLO]: [

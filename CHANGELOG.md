@@ -1,35 +1,42 @@
 # Changelog
 
-## v0.6.0 — 2026-11-24 (U21: the upsell feature keys, Platform KA prompt 1884; plan marker S11B-KA1881)
+## v0.6.0 — 2026-11-24 (U21: the upsell feature keys, Platform KA prompts 1884 and 1885; plan marker S11B-KA1881)
 
-Registry only. `FEATURES[app]` gains the `upsell.<seam>.<event>` keys of the eight apps that sell Rello an upgrade:
+Registry only. `FEATURES[app]` gains the `upsell.<surface>.<event>` keys of the eight apps that sell Rello an upgrade:
 slice S11 sends a spoke's upsell telemetry (today the hub `AuditLog` PlatformSignal rows named
-`<app>.upsell.<seam>.<event>`) to the engine as `feature.used` with `feature = "upsell.<seam>.<event>"`, and the engine
+`<app>.upsell.<surface>.<event>`) to the engine as `feature.used` with `feature = "upsell.<surface>.<event>"`, and the engine
 refuses a feature its pinned registry does not list. Growth's engine read turns (app, feature) back into the hub name by
 putting `<app>.` in front, so the mapping is exact and lossless in both directions (pinned by a round-trip test). The v0.5.0
 entries are byte for byte unchanged and stay in front (checked against the `v0.5.0` tag); `ROUTES`, the event schemas,
 the page script (`dist/script/s.js`, same bytes, 7214 B), the server helper, the redirect, the wire contract and the
 grammar are unchanged. No tag is cut by this change.
 
-| App | Seams | Keys |
-|---|---|---|
-| `harvest-home` | 3 | 15 |
-| `home-ready` | 3 | 15 |
-| `home-stretch` | 3 | 15 |
-| `newsletter-studio` | 3 | 15 |
-| `open-house-hub` | 3 | 15 |
-| `market-intel` | 3 | 15 |
-| `pathfinder-pro` | 4 | 20 |
-| `the-drumbeat` | 3 | 15 |
-| **Total** | **25** | **125** |
+The vocabulary (KA 1885): every `<surface>.<event>` pair a source app emits on its main today, every pair Rello writes under
+a source app's family (trial-start's `converted`), and the 25 seams × 5 events. `@rello-platform/signals` v0.41.0 registers only
+the prefix `<app>.upsell.`, and Growth's interest read counts any surface's `.clicked` plus `upgrade-page.shown`, so a pair the
+engine refused would be a row Growth loses at cutover.
 
-- **Seams are Rello's `UPSELL_SEAMS`** (`src/lib/upsell/seam-registry.ts` at Rello `9fd58f997`); **events are `UPSELL_EVENTS`**
-  of `@rello-platform/ui`: `shown`, `engaged`, `dismissed`, `clicked`, `converted`. `@rello-platform/signals` v0.41.0
-  registers only the family prefix `<app>.upsell.` for the eight `UPSELL_SOURCE_APPS` and names no seam or event.
-- **Not registered:** the non-seam surfaces the spokes also emit (`menu-item`, `trial-banner`, `upgrade-page`, and Pathfinder
-  Pro's locked-feature surfaces with their own events), and `<app>.audit.upsell-nudge.*`. Rello's seam registry does not hold
-  those surfaces, so the ruling registers nothing for them; the report to the KA names the exact keys.
-- Rello, `home-scout`, `the-oven`, `arive` and `prequal-pro` register no upsell key.
+| App | Seam keys (seams × 5) | Common-surface keys | Locked-feature keys | Keys |
+|---|---|---|---|---|
+| `harvest-home` | 15 (3) | 6 | 0 | 21 |
+| `home-ready` | 15 (3) | 6 | 0 | 21 |
+| `home-stretch` | 15 (3) | 6 | 0 | 21 |
+| `newsletter-studio` | 15 (3) | 6 | 0 | 21 |
+| `open-house-hub` | 15 (3) | 6 | 0 | 21 |
+| `market-intel` | 15 (3) | 6 | 0 | 21 |
+| `pathfinder-pro` | 20 (4) | 6 | 84 | 110 |
+| `the-drumbeat` | 15 (3) | 6 | 0 | 21 |
+| **Total** | **125** | **48** | **84** | **257** |
+
+- **Seams are Rello's `UPSELL_SEAMS`** (`src/lib/upsell/seam-registry.ts` at Rello `9fd58f997`); **seam events are `UPSELL_EVENTS`**
+  of `@rello-platform/ui`: `shown`, `engaged`, `dismissed`, `clicked`, `converted`.
+- **Common surfaces, all eight apps:** `upsell.menu-item.shown|clicked`, `upsell.trial-banner.shown`,
+  `upsell.upgrade-page.shown|clicked|converted` (the spokes' `PAIRS` on main; `upgrade-page.converted` is Rello's, written by trial-start).
+  Cited by file and line in the `src/registry.ts` comment.
+- **`pathfinder-pro` locked-feature surfaces:** the 14 `PFP_LOCKED_FEATURE_SLUGS` of `@rello-platform/upgrade-content` v0.14.1
+  (the tag PFP pins) × `shown`, `clicked`, `preview-opened`, `preview-explored`, `blocked-hint`, `dismissed` (PFP `telemetry.ts` `LOCK_EVENTS`).
+- **Not registered:** `<app>.audit.upsell-nudge.*` (not part of S11).
+- Longest key 58 characters (cap 80). Rello, `home-scout`, `the-oven`, `arive` and `prequal-pro` register no upsell key.
 - `tests/registry-spokes-v050.test.ts` reads `FEATURES` without the appended upsell keys, so it still pins the v0.5.0 entries;
   `tests/registry-upsell-v060.test.ts` pins the new ones.
 
