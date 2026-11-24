@@ -5,7 +5,7 @@ slice imports it: the Tracking Engine's edge and consumer, Rello, and each app's
 in-app sender.
 
 ```
-npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.5.0"
+npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.6.0"
 ```
 
 ## What is in it
@@ -14,7 +14,7 @@ npm install "@rello-platform/tracking@github:rello-platform/tracking#v0.5.0"
 |---|---|
 | `EVENT_NAMES`, `EVENT_SCHEMAS`, `parseEvent` | The 12 stored events (`link.hit`, `link.scanned`, `visit.start`, `page.view`, `page.leave`, `scroll.depth`, `section.read`, `cta.click`, `widget.use`, `identify`, `screen.opened`, `feature.used`). Each is a zod `.strict()` object; the event name is in `name`. Common fields are filled in by the edge or app server, never by a browser. |
 | `ROUTES[app]`, `matchRoute` | Registered route templates. `screen.opened.route`, and `path` on `spoke_public`/`in_app`, must be one of the event's app's templates. |
-| `FEATURES[app]` | Registered `feature.used` keys. An app's `feature.used` is refused unless its key is registered here in a reviewed release. v0.3.0 registers Rello's first eleven (S9 part 3); v0.5.0 registers the ten spoke apps' keys (112 in all). `arive` and `prequal-pro` register none. |
+| `FEATURES[app]` | Registered `feature.used` keys. An app's `feature.used` is refused unless its key is registered here in a reviewed release. v0.3.0 registers Rello's first eleven (S9 part 3); v0.5.0 registers the ten spoke apps' keys (112 in all); v0.6.0 appends the `upsell.<seam>.<event>` keys of the eight apps that sell Rello an upgrade (125). `arive` and `prequal-pro` register none. |
 | `findUnboundedStrings`, `findNonStrictObjects` | Guards: the package test runs them over all 12 schemas and requires an empty list. |
 | `checkScriptSize`, `SCRIPT_GZIP_LIMIT_BYTES` | The page script must be ≤ 3,584 B minified + gzipped (level 9); raised from 3,072 B by KA ruling 1786 (S12-SIZE-KA1786) for S12b's ads hook. |
 | `@rello-platform/tracking/redirect` | `redirectLocation(url)`: the pure `/t/c` 302. It removes `rg`, `r` and the four ad-click keys (`gclid`, `gbraid`, `wbraid`, `fbclid`, S12 §5.1) and keeps the rest of the query. A rejected destination goes to bare `/` (rule below). |

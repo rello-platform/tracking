@@ -192,6 +192,35 @@ export const ROUTES = registry({
     ],
 });
 /**
+ * The RELLO UPSELL events (`UPSELL_EVENTS` in @rello-platform/ui), the last word of a hub signal name
+ * `<app>.upsell.<seam>.<event>`. `converted` is written by Rello's trial-start for a started trial.
+ */
+const UPSELL_EVENT_NAMES = ["shown", "engaged", "dismissed", "clicked", "converted"];
+/**
+ * The eight standalone apps' upsell seams: Rello's `UPSELL_SEAMS` (src/lib/upsell/seam-registry.ts @ Rello main
+ * 9fd58f997), one list per app, keyed by the app's slug handle above. The apps are the eight
+ * `UPSELL_SOURCE_APPS` of @rello-platform/signals v0.41.0; Rello, home-scout and the-oven sell nothing, so they
+ * have no entry. A seam is registered here only if Rello's registry holds it.
+ */
+const UPSELL_SEAMS = Object.freeze({
+    [HARVEST_HOME]: ["property-watch-trigger", "dashboard-hot-leads", "score-cold-lead-rescue"],
+    [HOME_READY]: ["lead-ready-threshold", "journey-cadence-config", "pillar-blocker-insight"],
+    [HOME_STRETCH]: ["pre-approval-readiness-achieved", "journey-complete-graduation", "stall-detected-re-engagement"],
+    [NEWSLETTER_STUDIO]: ["newsletter-multi-channel-orchestration", "analytics-cross-app-intelligence", "audience-expansion-via-multi-source-leads"],
+    [OPEN_HOUSE_HUB]: ["hot-lead-alert-silence", "conversion-funnel-wall", "neighbor-referral-orphan"],
+    [MARKET_INTEL]: ["content-repurposing", "send-performance-analytics", "subscriber-segmentation-advanced"],
+    [PATHFINDER_PRO]: ["multi-channel-borrower-touch", "post-export-revenue-attribution", "pre-intake-nurture-history", "agent-events-locked"],
+    [THE_DRUMBEAT]: ["auto-task-hot-lead", "full-timeline", "pages-create-custom"],
+});
+/**
+ * v0.6.0 (U21, Platform KA 1884): an app's `upsell.<seam>.<event>` keys, seam by seam, five events each.
+ * S11 sends a spoke's upsell telemetry as `feature.used` with `feature = "upsell.<seam>.<event>"`; the hub
+ * name is `<app>.` in front of the key, so the mapping is exact in both directions.
+ */
+function upsell(app) {
+    return (UPSELL_SEAMS[app] ?? []).flatMap((seam) => UPSELL_EVENT_NAMES.map((event) => `upsell.${seam}.${event}`));
+}
+/**
  * Registered features. v0.1.x registered none. S9 adds each app's features, and S11
  * adds `upsell.<seam>.<event>` keys, each in a reviewed release. An app with nothing
  * registered has every `feature.used` refused, which is the intended state for a
@@ -207,6 +236,12 @@ export const ROUTES = registry({
  * refused for an app that has not registered it. Rulings (U2-RULED-KA1858): pathfinder-pro
  * keeps `intakes.create` (the app's own word, no save-lead keys); harvest-home registers both
  * `byol.upload` and `byol.commit`; home-scout's `settings.update` stays.
+ *
+ * v0.6.0 (U21, Platform KA 1884; plan marker S11B-KA1881) appends, for the eight apps that sell Rello an
+ * upgrade, every `upsell.<seam>.<event>` key: Rello's seams of that app × shown, engaged, dismissed, clicked,
+ * converted (see `upsell()` above). The v0.5.0 entries are unchanged and stay in front. Not registered: the
+ * non-seam surfaces the spokes also emit (`menu-item`, `trial-banner`, `upgrade-page`, Pathfinder Pro's
+ * locked-feature surfaces), because Rello's seam registry does not hold them (CHANGELOG, v0.6.0).
  */
 export const FEATURES = registry({
     [RELLO]: [
@@ -234,6 +269,7 @@ export const FEATURES = registry({
         "intakes.export",
         "lenders.create",
         "refi-radar.upload",
+        ...upsell(PATHFINDER_PRO),
     ],
     [HARVEST_HOME]: [
         "byol.upload",
@@ -248,6 +284,7 @@ export const FEATURES = registry({
         "discovery.saved-search-create",
         "property-watch.create",
         "crm.connect",
+        ...upsell(HARVEST_HOME),
     ],
     [HOME_READY]: [
         "leads.create",
@@ -262,6 +299,7 @@ export const FEATURES = registry({
         "journeys.create",
         "agents.invite",
         "messages.send",
+        ...upsell(HOME_READY),
     ],
     [HOME_SCOUT]: [
         "widgets.create",
@@ -286,6 +324,7 @@ export const FEATURES = registry({
         "tours.itinerary-send",
         "seller-listings.create",
         "follow-ups.send",
+        ...upsell(OPEN_HOUSE_HUB),
     ],
     [NEWSLETTER_STUDIO]: [
         "newsletters.create",
@@ -300,6 +339,7 @@ export const FEATURES = registry({
         "listings.create",
         "sources.feed-add",
         "writing-styles.create",
+        ...upsell(NEWSLETTER_STUDIO),
     ],
     [MARKET_INTEL]: [
         "digests.generate",
@@ -312,6 +352,7 @@ export const FEATURES = registry({
         "announcements.create",
         "podcast.settings-update",
         "branding.update",
+        ...upsell(MARKET_INTEL),
     ],
     [HOME_STRETCH]: [
         "leads.create",
@@ -325,6 +366,7 @@ export const FEATURES = registry({
         "mlo-partners.create",
         "milo.chat",
         "milo.lead-analysis",
+        ...upsell(HOME_STRETCH),
     ],
     [THE_DRUMBEAT]: [
         "campaigns.create",
@@ -339,6 +381,7 @@ export const FEATURES = registry({
         "qr-codes.create",
         "bio-links.create",
         "utm-links.create",
+        ...upsell(THE_DRUMBEAT),
     ],
     [THE_OVEN]: [
         "referrals.create",

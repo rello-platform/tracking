@@ -61,6 +61,12 @@ export declare const ROUTES: Registry;
  * refused for an app that has not registered it. Rulings (U2-RULED-KA1858): pathfinder-pro
  * keeps `intakes.create` (the app's own word, no save-lead keys); harvest-home registers both
  * `byol.upload` and `byol.commit`; home-scout's `settings.update` stays.
+ *
+ * v0.6.0 (U21, Platform KA 1884; plan marker S11B-KA1881) appends, for the eight apps that sell Rello an
+ * upgrade, every `upsell.<seam>.<event>` key: Rello's seams of that app × shown, engaged, dismissed, clicked,
+ * converted (see `upsell()` above). The v0.5.0 entries are unchanged and stay in front. Not registered: the
+ * non-seam surfaces the spokes also emit (`menu-item`, `trial-banner`, `upgrade-page`, Pathfinder Pro's
+ * locked-feature surfaces), because Rello's seam registry does not hold them (CHANGELOG, v0.6.0).
  */
 export declare const FEATURES: Registry;
 /** Match a pathname against templates; each `[param]` matches exactly one segment. */
