@@ -31,6 +31,14 @@ type Registry = {
  * token or a person's slug, so their tag can send the template instead (§3.2), and the
  * portal's own dashboard page for the later portal unit.
  *
+ * v0.5.0 (U3, Platform KA 1874, ruling U2-RULED-KA1858) registers the ten spokes' own in-app
+ * screens, and only the screens that can send: a server-rendered page. A client-only
+ * screen is not registered (HH 2, OHH 2, NS 3, THS 6 are registrable; wrapper pages are a
+ * later unit). Drumbeat takes its 10-route trim; home-ready has no /guest-mlo/* (an invited
+ * outside loan officer is not the paying customer); a page served inside Rello under
+ * /apps/<slug>/* reports the app's own template, with no embed prefix. A client-portal,
+ * borrower or homeowner screen is never registered (plan §3.3 item 4).
+ *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
  * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can
@@ -46,6 +54,13 @@ export declare const ROUTES: Registry;
  * S9 part 3 (Platform KA 1747) registers Rello's first eleven: one per signed-in server
  * action Growth reads, each sent once after that action's own write succeeds. A key names
  * the action only: no lead, client, campaign or user value can be a feature.
+ *
+ * v0.5.0 (U3, Platform KA 1874) registers the ten spokes' own keys, one per signed-in
+ * action the app's server runs after its own write succeeds. The same word may appear under
+ * several apps (`leads.create`, `milo.chat`): the registry is keyed by app, and a key is
+ * refused for an app that has not registered it. Rulings (U2-RULED-KA1858): pathfinder-pro
+ * keeps `intakes.create` (the app's own word, no save-lead keys); harvest-home registers both
+ * `byol.upload` and `byol.commit`; home-scout's `settings.update` stays.
  */
 export declare const FEATURES: Registry;
 /** Match a pathname against templates; each `[param]` matches exactly one segment. */
