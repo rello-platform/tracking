@@ -86,10 +86,14 @@ const TEN = Object.keys(EXPECTED) as AppSlug[];
 // having nothing to check. `registered` is the guard for the loops that must walk the registry itself.
 const featuresOf = (app: AppSlug) => EXPECTED[app].features;
 const routesOf = (app: AppSlug) => EXPECTED[app].routes;
+// v0.6.0 (U21) appends `upsell.<seam>.<event>` keys to eight of these apps' FEATURES. The v0.5.0 entries stay
+// as they were, so this file keeps pinning them: it reads FEATURES without the appended upsell keys, and
+// tests/registry-upsell-v060.test.ts pins those.
+const v050 = (app: AppSlug) => FEATURES[app].filter((k) => !k.startsWith("upsell."));
 const registered = (app: AppSlug) => {
   expect(ROUTES[app].length, `${app} routes registered`).toBe(routesOf(app).length);
-  expect(FEATURES[app].length, `${app} features registered`).toBe(featuresOf(app).length);
-  return { routes: ROUTES[app], features: FEATURES[app] };
+  expect(v050(app).length, `${app} features registered`).toBe(featuresOf(app).length);
+  return { routes: ROUTES[app], features: v050(app) };
 };
 
 // A whole server event, as the helper builds it.
@@ -118,16 +122,16 @@ describe("the ten spoke apps are all keyed, and by canonical slug", () => {
 
   test("each of the ten registers exactly its ruled FEATURES and ROUTES, in order", () => {
     for (const app of TEN) {
-      expect([...FEATURES[app]], `${app} features`).toEqual([...EXPECTED[app].features]);
+      expect([...v050(app)], `${app} features`).toEqual([...EXPECTED[app].features]);
       expect([...ROUTES[app]], `${app} routes`).toEqual([...EXPECTED[app].routes]);
     }
   });
 
   test("the counts are the ruled counts: 112 feature keys, 96 route templates", () => {
     for (const app of TEN) {
-      expect([FEATURES[app].length, ROUTES[app].length], app).toEqual([...COUNTS[app]]);
+      expect([v050(app).length, ROUTES[app].length], app).toEqual([...COUNTS[app]]);
     }
-    expect(TEN.reduce((n, a) => n + FEATURES[a].length, 0)).toBe(112);
+    expect(TEN.reduce((n, a) => n + v050(a).length, 0)).toBe(112);
     expect(TEN.reduce((n, a) => n + ROUTES[a].length, 0)).toBe(96);
   });
 
