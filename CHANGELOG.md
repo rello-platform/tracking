@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.5.0 — 2026-11-24 (U3: the ten spoke apps' registries, Platform KA prompt 1874; ruling U2-RULED-KA1858)
+
+Registry only. `FEATURES[app]` and `ROUTES[app]` for the ten spokes, keyed by `APP_SLUGS` index handles with
+`satisfies` (the Rello pattern, no literal slug list). Rello's entries are byte for byte unchanged. The event
+schemas, the page script (`dist/script/s.js`, same bytes, 7214 B, 3337 B gzip), the server helper, the redirect and
+the wire contract are unchanged.
+
+| App | FEATURES | ROUTES |
+|---|---|---|
+| `pathfinder-pro` | 11 | 12 |
+| `harvest-home` | 12 | 2 |
+| `home-ready` | 12 | 17 |
+| `home-scout` | 10 | 13 |
+| `open-house-hub` | 10 | 2 |
+| `newsletter-studio` | 12 | 3 |
+| `market-intel` | 10 | 9 |
+| `home-stretch` | 11 | 6 |
+| `the-drumbeat` | 12 | 10 |
+| `the-oven` | 12 | 22 |
+| **Total** | **112** | **96** |
+
+- **ROUTES hold server-rendered screens only** (ruling 1): a `"use client"` page has no server render to send from.
+- **Drumbeat takes its 10-route trim**, not 37 (ruling 2). **home-ready has no `/guest-mlo/*`** (ruling 6: an invited
+  outside loan officer is not the paying customer). A page served under `/apps/<slug>/*` reports the app's own template (ruling 3).
+- **pathfinder-pro** keeps `intakes.create` and adds no save-lead keys; **harvest-home** registers both `byol.upload` and
+  `byol.commit` (ruling 8).
+- The same word (`leads.create`, `milo.chat`, `events.create`) may appear under several apps; a key is refused for an app that has not registered it.
+- `arive` and `prequal-pro` register nothing.
+- Tests: `tests/registry-spokes-v050.test.ts` (22 tests). `tests/registry-rello-s9.test.ts` "no other app registers a feature yet"
+  is now "the two apps that are not Rello and not one of the ten spokes register no feature" (the old assertion is what this release retires).
+- README install line now names `#v0.5.0`.
+
 ## v0.4.0 — 2026-11-23 (S12b package half, Platform KA prompts 1784 and 1808; #6)
 
 The package half of S12b, including the page script's ads hook (ships at `/t/s.v1.2.js`).

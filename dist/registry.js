@@ -14,10 +14,21 @@
  * new app in the slugs package must be added here before this package compiles.
  */
 import { APP_SLUGS } from "@rello-platform/slugs";
-// Named handles for the apps that register something in v0.1.0. Each is read from the
-// canonical list by index and checked against its slug by `satisfies`, so a reorder of
-// APP_SLUGS fails tsc here instead of silently registering under the wrong app.
+// Named handles for the apps that register something. Each is read from the canonical
+// list by index and checked against its slug by `satisfies`, so a reorder of APP_SLUGS
+// fails tsc here instead of silently registering under the wrong app.
 const RELLO = APP_SLUGS[1];
+// v0.5.0 (U3, Platform KA 1874): the ten spoke apps.
+const HARVEST_HOME = APP_SLUGS[2];
+const HOME_READY = APP_SLUGS[3];
+const HOME_STRETCH = APP_SLUGS[4];
+const HOME_SCOUT = APP_SLUGS[5];
+const MARKET_INTEL = APP_SLUGS[6];
+const NEWSLETTER_STUDIO = APP_SLUGS[7];
+const THE_OVEN = APP_SLUGS[8];
+const THE_DRUMBEAT = APP_SLUGS[9];
+const OPEN_HOUSE_HUB = APP_SLUGS[10];
+const PATHFINDER_PRO = APP_SLUGS[11];
 /** A route template: "/" or segments that are lowercase static words (no digits) or `[camelCaseParam]`. */
 export const ROUTE_TEMPLATE_GRAMMAR = /^(\/|(\/([a-z]+(-[a-z]+)*|\[[a-z][a-zA-Z]*\]))+)$/;
 /** A feature key: lowercase dotted/hyphenated words, no digits-only part. */
@@ -37,6 +48,14 @@ function registry(entries) {
  * S10 (Rello's public pages, Platform KA 1664) adds the three pages whose URL carries a
  * token or a person's slug, so their tag can send the template instead (§3.2), and the
  * portal's own dashboard page for the later portal unit.
+ *
+ * v0.5.0 (U3, Platform KA 1874, ruling U2-RULED-KA1858) registers the ten spokes' own in-app
+ * screens, and only the screens that can send: a server-rendered page. A client-only
+ * screen is not registered (HH 2, OHH 2, NS 3, THS 6 are registrable; wrapper pages are a
+ * later unit). Drumbeat takes its 10-route trim; home-ready has no /guest-mlo/* (an invited
+ * outside loan officer is not the paying customer); a page served inside Rello under
+ * /apps/<slug>/* reports the app's own template, with no embed prefix. A client-portal,
+ * borrower or homeowner screen is never registered (plan §3.3 item 4).
  *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
@@ -65,6 +84,112 @@ export const ROUTES = registry({
         "/broker",
         "/realtor-prospects/[id]",
     ],
+    [PATHFINDER_PRO]: [
+        "/dashboard/scenarios",
+        "/dashboard/pipeline",
+        "/dashboard/rates",
+        "/dashboard/events",
+        "/dashboard/events/[eventId]",
+        "/dashboard/exports",
+        "/dashboard/exports/[id]",
+        "/dashboard/loan-programs",
+        "/dashboard/loan-programs/[slug]",
+        "/dashboard/dscr-advisor",
+        "/dashboard/hecm-advisor",
+        "/dashboard/bankstatement-advisor",
+    ],
+    [HARVEST_HOME]: ["/onboarding/welcome", "/upgrade"],
+    [HOME_READY]: [
+        "/dashboard",
+        "/dashboard/leads",
+        "/dashboard/leads/add",
+        "/dashboard/leads/[id]",
+        "/dashboard/journeys",
+        "/dashboard/journeys/builder",
+        "/dashboard/journeys/builder/[templateId]",
+        "/dashboard/mlo",
+        "/dashboard/mlo/agents",
+        "/dashboard/mlo/agents/[id]",
+        "/dashboard/mlo/analytics",
+        "/dashboard/mlo/leaderboard",
+        "/dashboard/mlo/source-analytics",
+        "/dashboard/notifications",
+        "/dashboard/qr-code",
+        "/dashboard/invite",
+        "/dashboard/settings",
+    ],
+    [HOME_SCOUT]: [
+        "/dashboard",
+        "/analytics",
+        "/branding",
+        "/ctas",
+        "/embeds",
+        "/forms",
+        "/identity",
+        "/landing-pages",
+        "/landing-pages/new",
+        "/landing-pages/[id]/edit",
+        "/privacy-requests",
+        "/tenant-settings",
+        "/tools",
+    ],
+    [OPEN_HOUSE_HUB]: ["/dashboard/co-hosting", "/dashboard/upgrade"],
+    [NEWSLETTER_STUDIO]: ["/dashboard/settings/sources", "/dashboard/settings/writing-style", "/dashboard/upgrade"],
+    [MARKET_INTEL]: [
+        "/admin",
+        "/admin/digests",
+        "/admin/queue",
+        "/admin/subscribers",
+        "/admin/sources",
+        "/admin/websites",
+        "/admin/podcast",
+        "/admin/announcements",
+        "/admin/branding",
+    ],
+    [HOME_STRETCH]: [
+        "/dashboard/agent",
+        "/dashboard/invite",
+        "/dashboard/settings",
+        "/dashboard/settings/apps",
+        "/dashboard/settings/articles",
+        "/dashboard/settings/team",
+    ],
+    [THE_DRUMBEAT]: [
+        "/dashboard",
+        "/campaigns",
+        "/campaigns/[id]",
+        "/content/social",
+        "/content/blog",
+        "/content/video",
+        "/listings",
+        "/outreach/audiences",
+        "/outreach/direct-mail",
+        "/pages/qr-codes",
+    ],
+    [THE_OVEN]: [
+        "/dashboard",
+        "/alerts",
+        "/check-ins",
+        "/homeowner-hub",
+        "/past-clients",
+        "/past-clients/[relloLeadId]",
+        "/referrals",
+        "/referrals/new",
+        "/referrals/[id]",
+        "/reviews",
+        "/reviews/analytics",
+        "/reviews/connect/yelp",
+        "/reviews/inbox",
+        "/reviews/request",
+        "/reviews/testimonials",
+        "/reviving",
+        "/reviving/campaign",
+        "/reviving/[id]",
+        "/service-providers",
+        "/settings",
+        "/transition",
+        "/transition/[leadId]",
+    ],
 });
 /**
  * Registered features. v0.1.x registered none. S9 adds each app's features, and S11
@@ -75,6 +200,13 @@ export const ROUTES = registry({
  * S9 part 3 (Platform KA 1747) registers Rello's first eleven: one per signed-in server
  * action Growth reads, each sent once after that action's own write succeeds. A key names
  * the action only: no lead, client, campaign or user value can be a feature.
+ *
+ * v0.5.0 (U3, Platform KA 1874) registers the ten spokes' own keys, one per signed-in
+ * action the app's server runs after its own write succeeds. The same word may appear under
+ * several apps (`leads.create`, `milo.chat`): the registry is keyed by app, and a key is
+ * refused for an app that has not registered it. Rulings (U2-RULED-KA1858): pathfinder-pro
+ * keeps `intakes.create` (the app's own word, no save-lead keys); harvest-home registers both
+ * `byol.upload` and `byol.commit`; home-scout's `settings.update` stays.
  */
 export const FEATURES = registry({
     [RELLO]: [
@@ -89,6 +221,138 @@ export const FEATURES = registry({
         "journeys.enroll",
         "nurture.reengage-enroll",
         "milo.chat",
+    ],
+    [PATHFINDER_PRO]: [
+        "intakes.create",
+        "scenarios.create",
+        "scenarios.deliver",
+        "pipeline.stage-change",
+        "pipeline.note-create",
+        "pre-approval.send",
+        "rate-sheets.upload",
+        "events.create",
+        "intakes.export",
+        "lenders.create",
+        "refi-radar.upload",
+    ],
+    [HARVEST_HOME]: [
+        "byol.upload",
+        "byol.commit",
+        "byol.action-run",
+        "leads.manual-create",
+        "call-list.mark-contacted",
+        "call-list.snooze",
+        "call-list.send-to-nurture",
+        "pipeline.session-start",
+        "discovery.unlock",
+        "discovery.saved-search-create",
+        "property-watch.create",
+        "crm.connect",
+    ],
+    [HOME_READY]: [
+        "leads.create",
+        "leads.invite-send",
+        "prospects.invite",
+        "leads.note-create",
+        "leads.document-upload",
+        "leads.share",
+        "leads.export-arive",
+        "leads.mlo-assign",
+        "journeys.enroll",
+        "journeys.create",
+        "agents.invite",
+        "messages.send",
+    ],
+    [HOME_SCOUT]: [
+        "widgets.create",
+        "landing-pages.create",
+        "landing-pages.publish",
+        "ctas.create",
+        "forms.create",
+        "testimonials.create",
+        "identity.update",
+        "settings.update",
+        "guest-mlo.link",
+        "privacy-requests.answer",
+    ],
+    [OPEN_HOUSE_HUB]: [
+        "events.create",
+        "attendees.add",
+        "events.cohost-invite",
+        "showings.create",
+        "showings.confirm",
+        "showings.complete",
+        "tours.create",
+        "tours.itinerary-send",
+        "seller-listings.create",
+        "follow-ups.send",
+    ],
+    [NEWSLETTER_STUDIO]: [
+        "newsletters.create",
+        "newsletters.send",
+        "newsletters.schedule",
+        "newsletters.test-send",
+        "templates.create",
+        "flows.create",
+        "flows.enroll-lead",
+        "leads.create",
+        "leads.import",
+        "listings.create",
+        "sources.feed-add",
+        "writing-styles.create",
+    ],
+    [MARKET_INTEL]: [
+        "digests.generate",
+        "digests.send",
+        "breaking-news.send",
+        "subscribers.invite",
+        "subscribers.access-approve",
+        "sources.create",
+        "websites.create",
+        "announcements.create",
+        "podcast.settings-update",
+        "branding.update",
+    ],
+    [HOME_STRETCH]: [
+        "leads.create",
+        "leads.update",
+        "leads.activity-create",
+        "leads.score-recalculate",
+        "leads.document-upload",
+        "leads.tag-update",
+        "invitations.create",
+        "agents.invite-resend",
+        "mlo-partners.create",
+        "milo.chat",
+        "milo.lead-analysis",
+    ],
+    [THE_DRUMBEAT]: [
+        "campaigns.create",
+        "social.post-create",
+        "social.post-publish",
+        "content.draft-approve",
+        "blog.post-publish",
+        "video.upload",
+        "direct-mail.send",
+        "listings.campaign-dispatch",
+        "audiences.create",
+        "qr-codes.create",
+        "bio-links.create",
+        "utm-links.create",
+    ],
+    [THE_OVEN]: [
+        "referrals.create",
+        "programs.create",
+        "reviews.request",
+        "reviews.response-post",
+        "reviews.testimonial-approve",
+        "reviews.connect",
+        "hub.invite-send",
+        "revival.start",
+        "transition.hand-off",
+        "service-providers.create",
+        "check-ins.configure",
+        "past-clients.create",
     ],
 });
 /** Match a pathname against templates; each `[param]` matches exactly one segment. */

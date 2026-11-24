@@ -74,8 +74,11 @@ describe("FEATURES.rello (S9 part 3)", () => {
     expect(parse({ feature: "jane@example.com" })).toBe(false);
   });
 
-  test("no other app registers a feature yet", () => {
-    for (const app of APP_SLUGS) if (app !== RELLO) expect(FEATURES[app], app).toEqual([]);
+  // v0.5.0 (U3) registers the ten spokes, so "no other app" became "no app outside rello and the ten":
+  // arive and prequal-pro still register nothing. The ten's own lists are pinned in registry-spokes-v050.test.ts.
+  test("the two apps that are not Rello and not one of the ten spokes register no feature", () => {
+    const NOT_TRACKED = [APP_SLUGS[0] satisfies "arive", APP_SLUGS[12] satisfies "prequal-pro"];
+    for (const app of NOT_TRACKED) expect(FEATURES[app], app).toEqual([]);
   });
 });
 
