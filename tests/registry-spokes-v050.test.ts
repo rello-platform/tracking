@@ -90,10 +90,15 @@ const routesOf = (app: AppSlug) => EXPECTED[app].routes;
 // as they were, so this file keeps pinning them: it reads FEATURES without the appended upsell keys, and
 // tests/registry-upsell-v060.test.ts pins those.
 const v050 = (app: AppSlug) => FEATURES[app].filter((k) => !k.startsWith("upsell."));
+// v0.8.0 (S10, Platform KA 2022) appends the agent-page / homeowner-hub / portal templates to home-scout,
+// home-ready and home-stretch, AFTER every v0.5.0 entry. This file keeps pinning the v0.5.0 in-app lists, read as
+// each list's first n entries; tests/registry-spokes-s10-v080.test.ts pins the full lists (v0.5.0 entries + the
+// appended templates). The matching tests below still walk the FULL lists, so a v0.5.0 path matches as before.
+const v050Routes = (app: AppSlug) => ROUTES[app].slice(0, routesOf(app).length);
 const registered = (app: AppSlug) => {
-  expect(ROUTES[app].length, `${app} routes registered`).toBe(routesOf(app).length);
+  expect(v050Routes(app).length, `${app} routes registered`).toBe(routesOf(app).length);
   expect(v050(app).length, `${app} features registered`).toBe(featuresOf(app).length);
-  return { routes: ROUTES[app], features: v050(app) };
+  return { routes: v050Routes(app), features: v050(app) };
 };
 
 // A whole server event, as the helper builds it.
@@ -123,16 +128,16 @@ describe("the ten spoke apps are all keyed, and by canonical slug", () => {
   test("each of the ten registers exactly its ruled FEATURES and ROUTES, in order", () => {
     for (const app of TEN) {
       expect([...v050(app)], `${app} features`).toEqual([...EXPECTED[app].features]);
-      expect([...ROUTES[app]], `${app} routes`).toEqual([...EXPECTED[app].routes]);
+      expect([...v050Routes(app)], `${app} routes`).toEqual([...EXPECTED[app].routes]);
     }
   });
 
   test("the counts are the ruled counts: 112 feature keys, 96 route templates", () => {
     for (const app of TEN) {
-      expect([v050(app).length, ROUTES[app].length], app).toEqual([...COUNTS[app]]);
+      expect([v050(app).length, v050Routes(app).length], app).toEqual([...COUNTS[app]]);
     }
     expect(TEN.reduce((n, a) => n + v050(a).length, 0)).toBe(112);
-    expect(TEN.reduce((n, a) => n + ROUTES[a].length, 0)).toBe(96);
+    expect(TEN.reduce((n, a) => n + v050Routes(a).length, 0)).toBe(96);
   });
 
   test("no app outside the ten and rello registers anything (arive, prequal-pro)", () => {

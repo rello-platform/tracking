@@ -39,6 +39,11 @@ type Registry = {
  * /apps/<slug>/* reports the app's own template, with no embed prefix. A client-portal,
  * borrower or homeowner screen is never registered (plan §3.3 item 4).
  *
+ * v0.8.0 (S10 prep for U16–U18, Platform KA 2022) appends PAGE templates, each after the app's in-app list: Home
+ * Scout's agent pages and homeowner hub, HomeReady's agent page and its two lead pages, The Home Stretch's client
+ * portal. These are spoke_public templates sent by the S10 page tag (`data-routes`); a path never carries the id. The
+ * "no client-portal screen" rule above is about in-app (S9) screens; the portal templates here are KA 2022's S10 order.
+ *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
  * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can
