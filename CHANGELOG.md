@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.8.0 — 2026-11-25 (S10 prep for U16–U18: spoke page templates, Platform KA prompt 2022; ruling KA 2020)
+
+Registry only. `ROUTES` gains the page templates the S10 spoke tags will send on `spoke_public`, so a `page.view` from
+those pages is stored with its template (the engine stores an unmatched path as no path, `tracking_path_unregistered`).
+Each list is made from that repo's main by one rule (written beside each list in `src/registry.ts`):
+
+- **home-scout**, 34 added (13 → 47). Every `page.tsx` under `src/app/(public)/[agentSlug]/**` and
+  `src/app/(owner)/[agentSlug]/**` at The-Home-Scout `fcbb6ee0`: route groups dropped, the leading `[agentSlug]` dropped
+  (the agent is the host label), other `[param]`s kept, `(product)/page.tsx` = `/`. Left out: `[pageSlug]/preview` (the
+  agent's drafts) and `/embed/**`. The agent site's `/tools` is the `/tools` already registered (35 pages, 34 new).
+- **home-ready**, 4 added (17 → 21). `/` and `/login`: the landing pages the subdomain branch of HomeReady's
+  `src/middleware.ts` rewrites to (`/landing/[slug]` dropped), at `4c97a28d`; plus `/portal/[leadId]` and
+  `/results/[leadId]` (STATUS U18, template only).
+- **home-stretch**, 28 added (6 → 34). Every `page.tsx` under `src/app/portal/` at TheHomeStretch `4d95dd3b`.
+
+All 66 fit `ROUTE_TEMPLATE_GRAMMAR`; none was left out for the grammar. Statics come before the `[param]` template of the
+same depth (both matchers return the first match). Every v0.7.0 entry of every app is unchanged and first.
+
+- **Unchanged:** the event schemas, `FEATURES`, the page script (`dist/script/s.js`, same bytes), the server helper, the
+  redirect and the ads loader.
+- **Known overlaps (by design of a per-app list):** `ROUTES` is per app, not per surface, so `/[pageSlug]` also matches a
+  one-segment Home Scout path no earlier template matches; HomeReady's `/portal/verify` is not registered, so a
+  `page.view` there would match `/portal/[leadId]`. Both carry no person value.
+- Tests: `tests/registry-spokes-s10-v080.test.ts` (new). `tests/registry-spokes-v050.test.ts` now pins each app's v0.5.0
+  entries as the first n of its list, as the v0.6.0 upsell change did for FEATURES.
+
 ## v0.7.0 — 2026-11-25 (U23b: an optional caller event id on the server `track()`, Platform KA prompt 1966; ruling KA 1943)
 
 Server helper only. `ServerTrackInput` (both `feature.used` and `screen.opened`) gains an optional `id?: string`. When a

@@ -63,6 +63,11 @@ function registry(entries: Partial<Record<AppSlug, readonly string[]>>): Registr
  * /apps/<slug>/* reports the app's own template, with no embed prefix. A client-portal,
  * borrower or homeowner screen is never registered (plan §3.3 item 4).
  *
+ * v0.8.0 (S10 prep for U16–U18, Platform KA 2022) appends PAGE templates, each after the app's in-app list: Home
+ * Scout's agent pages and homeowner hub, HomeReady's agent page and its two lead pages, The Home Stretch's client
+ * portal. These are spoke_public templates sent by the S10 page tag (`data-routes`); a path never carries the id. The
+ * "no client-portal screen" rule above is about in-app (S9) screens; the portal templates here are KA 2022's S10 order.
+ *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
  * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can
@@ -123,6 +128,15 @@ export const ROUTES: Registry = registry({
     "/dashboard/qr-code",
     "/dashboard/invite",
     "/dashboard/settings",
+    // v0.8.0 (S10 for U18, Platform KA 2020/2022): HomeReady's public pages. RULE: the pages the subdomain branch of
+    // src/middleware.ts ("SUBDOMAIN ROUTING", HomeReady main 4c97a28d) rewrites an agent host to — `/x` becomes
+    // `/landing/<label>/x`, `/login` exactly becomes `/landing/<label>/login` — with that added `/landing/[slug]` segment
+    // dropped (the agent is the host label), plus the two lead pages STATUS U18 names. Template only: a lead id is
+    // never stored. Note: `/portal/verify` is not registered, so a page.view there would store as `/portal/[leadId]`.
+    "/",
+    "/login",
+    "/portal/[leadId]",
+    "/results/[leadId]",
   ],
   [HOME_SCOUT]: [
     "/dashboard",
@@ -138,6 +152,48 @@ export const ROUTES: Registry = registry({
     "/privacy-requests",
     "/tenant-settings",
     "/tools",
+    // v0.8.0 (S10 for U16, Platform KA 2020/2022): the agent pages and the homeowner hub. RULE: every page.tsx under
+    // src/app/(public)/[agentSlug]/** and src/app/(owner)/[agentSlug]/** (The-Home-Scout main fcbb6ee0), with route
+    // groups "(x)" dropped and the leading [agentSlug] dropped (the agent is the host label: src/middleware.ts rewrites
+    // {label}.thehomescout.app/x to /{label}/x); every other dynamic segment keeps its [param] name; (product)/page.tsx
+    // is "/". Left out: [pageSlug]/preview (the agent's own drafts) and anything under /embed (shown inside other
+    // sites). The agent site's /tools is the "/tools" already above. Static templates come before the [param] template
+    // of the same depth (first match wins). ROUTES are per app, not per surface: "/[pageSlug]" also matches any
+    // one-segment Home Scout path not listed before it.
+    "/",
+    "/newsletter",
+    "/realtors",
+    "/home",
+    "/tours",
+    "/do-not-sell",
+    "/privacy",
+    "/terms",
+    "/[pageSlug]",
+    "/home/auth",
+    "/realtors/assistance",
+    "/realtors/budget",
+    "/realtors/library",
+    "/tools/book-a-call",
+    "/tools/browse-homes",
+    "/tools/buying-power",
+    "/tools/cash-out-calculator",
+    "/tools/compare-options",
+    "/tools/contact-form",
+    "/tools/get-pre-approved",
+    "/tools/get-pre-approved-bank-statement",
+    "/tools/get-pre-approved-dscr",
+    "/tools/get-pre-approved-hecm",
+    "/tools/get-pre-approved-va",
+    "/tools/net-sheet",
+    "/tools/qualify",
+    "/tools/referral",
+    "/tools/refi-calculator",
+    "/tools/upcoming-open-houses",
+    "/tools/[toolSlug]",
+    "/tours/[tourId]",
+    "/realtors/sheets/[sheetId]",
+    "/tools/book-a-call/[meetingTypeSlug]",
+    "/tools/book-a-call/[meetingTypeSlug]/confirm",
   ],
   [OPEN_HOUSE_HUB]: ["/dashboard/co-hosting", "/dashboard/upgrade"],
   [NEWSLETTER_STUDIO]: ["/dashboard/settings/sources", "/dashboard/settings/writing-style", "/dashboard/upgrade"],
@@ -159,6 +215,37 @@ export const ROUTES: Registry = registry({
     "/dashboard/settings/apps",
     "/dashboard/settings/articles",
     "/dashboard/settings/team",
+    // v0.8.0 (S10 for U17, Platform KA 2020/2022): the client portal. RULE: every page.tsx under src/app/portal/
+    // (TheHomeStretch main 4d95dd3b), its path as served (no route groups, no agent segment there). Templates only:
+    // the session-gated pages carry no person value in the path. Statics before the [param] template of the same depth.
+    "/portal/calculators",
+    "/portal/daily",
+    "/portal/dashboard",
+    "/portal/dream-profile",
+    "/portal/invite",
+    "/portal/journey",
+    "/portal/login",
+    "/portal/onboarding",
+    "/portal/plans",
+    "/portal/points",
+    "/portal/profile",
+    "/portal/savings",
+    "/portal/track-selection",
+    "/portal/verify",
+    "/portal/weekly",
+    "/portal/legal/accessibility",
+    "/portal/legal/communications",
+    "/portal/legal/disclosures",
+    "/portal/legal/do-not-sell",
+    "/portal/legal/notice-at-collection",
+    "/portal/legal/privacy",
+    "/portal/legal/terms",
+    "/portal/plans/credit",
+    "/portal/plans/debts",
+    "/portal/plans/down-payment",
+    "/portal/plans/income",
+    "/portal/plans/savings",
+    "/portal/journey/[moduleId]",
   ],
   [THE_DRUMBEAT]: [
     "/dashboard",
