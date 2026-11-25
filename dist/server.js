@@ -355,7 +355,10 @@ export function createTracker(options) {
         if (typeof name !== "string" || !SERVER_NAMES.has(name))
             return { ok: false, reason: "not_server_event" };
         const common = {
-            id: crypto.randomUUID(),
+            // v0.7.0: the caller's id when given, validated below by the schema with every other field
+            // (a non-UUID fails as invalid_id). Only `undefined` means "none": a null or any other value is
+            // the caller's id and is checked, never swapped for a minted one.
+            id: input.id !== undefined ? input.id : crypto.randomUUID(),
             ts: new Date().toISOString(),
             tenantId: input.tenantId,
             app,

@@ -94,11 +94,15 @@ const tracker = createTracker({
 // In a route handler: returns at once, never throws. `tenantId` is the signed-in session's tenant.
 tracker.track({ name: "feature.used", tenantId, feature: "leads.create" }, { defer: after });
 tracker.track({ name: "screen.opened", tenantId, route: "/leads/[id]" });
+
+// v0.7.0: a caller that already holds this action's id (e.g. the hub row's eventId) passes it as `id`.
+tracker.track({ name: "feature.used", tenantId, feature: "leads.create", id: eventId }, { defer: after });
 ```
 
 | Rule (plan §5.5 L5) | Behaviour |
 |---|---|
 | Validation | `EVENT_SCHEMAS` + `FEATURES` / `ROUTES`. An unregistered feature or route is dropped and counted, never sent. |
+| Event id | Minted per event (v4 UUID), or the caller's optional `id` (v0.7.0). A supplied `id` is checked by the schema's `z.uuid()` like every other field: a non-UUID is dropped and counted `invalid_id`, never sent and never replaced by a minted id. Every retry carries the same id. |
 | Batching | In-process buffer; a send every ≤ 10 s, or at once at 100 events. ≤ 100 events per `POST <engine>/v1/events`. |
 | Timeout and retry | 2 s per attempt. Retried only when unavailable (no answer, timeout, 429, 5xx, or a 200 whose body can't be read or isn't exactly the partial answer below): at 2 s, 10 s and 30 s, always the same batchId and event ids. A refusal (other 4xx) is never retried. |
 | Partial answer | 200 with exactly `{ stored, refused: [{ i, reason }] }` and no other key: `stored` a non-negative integer, `refused` non-empty, each `i` a distinct integer in `0 ≤ i < events`, each `reason` a non-empty string, and `stored + refused.length = events`. Then `refused.length` is counted refused, the rest accepted, no retry. Any other 200 body is unavailable. |
