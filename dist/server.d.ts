@@ -101,7 +101,16 @@ type ServerCommon = {
     visitorId?: string;
     sessionId?: string;
 };
-/** What a caller passes. The tenant is the one the app's own signed-in session attests (plan §9.2). */
+/**
+ * What a caller passes. The tenant is the one the app's own signed-in session attests (plan §9.2).
+ *
+ * `id` (v0.7.0, optional): the event's id, for a caller that already holds one for this action (an
+ * upsell dual-write sends the engine event under the hub row's eventId, so the two stores match id
+ * for id). It is checked at `track()` by the event schema's own `id: z.uuid()`, like every other
+ * field: a supplied id that is not a UUID is dropped and counted (`invalid_id`), never sent and never
+ * replaced by a minted id. Without one (`undefined`), the package mints a v4 UUID as before. Either
+ * way the id is fixed when the event is buffered, so every retry carries it.
+ */
 export type ServerTrackInput = {
     name: "feature.used";
     tenantId: string;
@@ -109,12 +118,14 @@ export type ServerTrackInput = {
     count?: number;
     visitorId?: string;
     sessionId?: string;
+    id?: string;
 } | {
     name: "screen.opened";
     tenantId: string;
     route: string;
     visitorId?: string;
     sessionId?: string;
+    id?: string;
 };
 /** The host hook: Next.js `after`, or a Worker's `ctx.waitUntil`. */
 export type Defer = (p: Promise<unknown>) => void;

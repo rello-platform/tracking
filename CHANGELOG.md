@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.7.0 — 2026-11-25 (U23b: an optional caller event id on the server `track()`, Platform KA prompt 1966; ruling KA 1943)
+
+Server helper only. `ServerTrackInput` (both `feature.used` and `screen.opened`) gains an optional `id?: string`. When a
+caller passes one, the event goes out under that id instead of a minted one; without one, `build()` mints a v4 UUID per event
+exactly as before. The upsell dual-writes (U23 PathfinderPro, U24–U30 the other seven source apps) need it: the engine event
+must carry the id the hub `AuditLog` row already holds, so the overlap week can match the two stores id for id. Until now
+PathfinderPro did that with a one-event fetch-layer rewrite after the package's validation; this replaces that pattern.
+
+- **Validation is the event schema's own.** The caller's id is put on the candidate event and checked by `EVENT_SCHEMAS[name]`
+  (`id: z.uuid()`) with every other field, at `track()`, before anything is buffered. A supplied id that is not a UUID fails
+  that check and is refused the way every invalid field already is (`build()` returns not-ok; `track()` drops the event and
+  counts it): `stats().droppedAtTrack.invalid_id` goes up and the next send's `tracking_events_invalid` line counts
+  `reasons=invalid_id:<n>`. It is never sent, never replaced by a minted id, and its value is never in a log line.
+- **Only `undefined` means "no id".** A `null` or any other non-string is the caller's id and is refused by the same check;
+  it is never treated as absent.
+- **Retries keep it.** The id is fixed when the event is buffered, so every attempt of a batch carries the same caller id
+  (the engine dedupes by id).
+- **Unchanged:** the wire contract and `SERVER_BATCH_SCHEMA`, batching, timers, the 2 s timeout, the retry schedule,
+  `classifyStatus` / `partialRefusedCount`, log line formats, `FEATURES` and `ROUTES` (0 changes), the event schemas, the
+  page script (`dist/script/s.js`, same bytes, 7214 B), the redirect and the ads loader.
+- Tests: `tests/server-caller-id.test.ts` (a caller id on the wire for both events; no id → a fresh UUID per event; nine
+  non-UUID ids refused at track() and nothing sent; a bad id beside a good event; `undefined` is no id; the id on all three
+  attempts of a 503, 503, 204 retry). `tests/server.test.ts` is unchanged.
+- No tag is cut by this change; `v0.7.0` is tagged after the audit.
+
 ## v0.6.0 — 2026-11-24 (U21: the upsell feature keys, Platform KA prompts 1884 and 1885; plan marker S11B-KA1881)
 
 Registry only. `FEATURES[app]` gains the `upsell.<surface>.<event>` keys of the eight apps that sell Rello an upgrade:
