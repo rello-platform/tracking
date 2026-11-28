@@ -84,7 +84,11 @@ describe("FEATURES.rello (S9 part 3)", () => {
 
 describe("ROUTES.rello in-app screens (S9 part 3)", () => {
   test("all nine are registered, after the seven from v0.1.x and S10, which are unchanged", () => {
-    expect(ROUTES[RELLO].slice(0, 7)).toEqual([
+    // v0.9.0 (HI-04) adds six Home Insight screen names (tests/registry-rello-home-insight-v090.test.ts): one just
+    // before "/leads/[id]" for first-match order, five at the end. Without them the list is exactly S9's.
+    const HI04 = ["/leads/home-insight", "/", "/today", "/team/realtor-prospects", "/team/performance", "/agent/sponsored"];
+    const s9List = ROUTES[RELLO].filter((t) => !HI04.includes(t));
+    expect(s9List.slice(0, 7)).toEqual([
       "/leads/[id]",
       "/c/dashboard",
       "/c/[token]",
@@ -93,7 +97,7 @@ describe("ROUTES.rello in-app screens (S9 part 3)", () => {
       "/growth/interest/[token]",
       "/signup-link/[token]",
     ]);
-    expect(ROUTES[RELLO].slice(7)).toEqual([...S9_SCREENS]);
+    expect(s9List.slice(7)).toEqual([...S9_SCREENS]);
   });
 
   test("each passes ROUTE_TEMPLATE_GRAMMAR and none repeats", () => {

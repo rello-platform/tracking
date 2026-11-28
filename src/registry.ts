@@ -68,6 +68,10 @@ function registry(entries: Partial<Record<AppSlug, readonly string[]>>): Registr
  * portal. These are spoke_public templates sent by the S10 page tag (`data-routes`); a path never carries the id. The
  * "no client-portal screen" rule above is about in-app (S9) screens; the portal templates here are KA 2022's S10 order.
  *
+ * v0.9.0 (HOME INSIGHT HI-04, spec seam X-29) adds six Rello screen names for Home Insight: "/", "/today",
+ * "/leads/home-insight", "/team/realtor-prospects", "/team/performance" and "/agent/sponsored". Five are appended;
+ * "/leads/home-insight" goes before "/leads/[id]" (the order rule below). Every other entry of every app is unchanged.
+ *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
  * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can
@@ -75,6 +79,9 @@ function registry(entries: Partial<Record<AppSlug, readonly string[]>>): Registr
  */
 export const ROUTES: Registry = registry({
   [RELLO]: [
+    // v0.9.0 (HOME INSIGHT HI-04): the Leads › Home Insight screen name. It sits here, before "/leads/[id]",
+    // because first match wins: after it, it could never match itself. A lead id is a cuid, never this word.
+    "/leads/home-insight",
     "/leads/[id]",
     "/c/dashboard",
     "/c/[token]",
@@ -94,6 +101,15 @@ export const ROUTES: Registry = registry({
     "/apps",
     "/broker",
     "/realtor-prospects/[id]",
+    // v0.9.0 (HOME INSIGHT HI-04, spec seam X-29): the Home Insight screens, sent as `screen.opened` (HI-52,
+    // HI-57, HI-61). "/" is the dashboard. Team and Leads switch tabs with ?tab= and a query is never a route, so
+    // each Home Insight tab gets its own name (with "/leads/home-insight" above). "/agent/sponsored" is sent only
+    // after the server confirms the viewer holds an ACTIVE HomeInsightSponsorship (H-8); "/agent" stays unregistered.
+    "/",
+    "/today",
+    "/team/realtor-prospects",
+    "/team/performance",
+    "/agent/sponsored",
   ],
   [PATHFINDER_PRO]: [
     "/dashboard/scenarios",
