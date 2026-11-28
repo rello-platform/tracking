@@ -44,6 +44,10 @@ type Registry = {
  * portal. These are spoke_public templates sent by the S10 page tag (`data-routes`); a path never carries the id. The
  * "no client-portal screen" rule above is about in-app (S9) screens; the portal templates here are KA 2022's S10 order.
  *
+ * v0.9.0 (HOME INSIGHT HI-04, spec seam X-29) adds six Rello screen names for Home Insight: "/", "/today",
+ * "/leads/home-insight", "/team/realtor-prospects", "/team/performance" and "/agent/sponsored". Five are appended;
+ * "/leads/home-insight" goes before "/leads/[id]" (the order rule below). Every other entry of every app is unchanged.
+ *
  * ORDER MATTERS: both matchers (`matchRoute` here, `matchTemplate` in the page script)
  * return the FIRST template that matches. A static template therefore comes before any
  * `[param]` template of the same shape — "/c/dashboard" before "/c/[token]" — or it can

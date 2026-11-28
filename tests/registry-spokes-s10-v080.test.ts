@@ -86,9 +86,12 @@ describe("v0.8.0 appends exactly the S10 templates, and nothing else changes", (
   });
 
   test("every other app's list is byte-identical to v0.7.0", () => {
+    // v0.9.0 (HI-04) adds six Home Insight screen names to rello only; with them taken out, rello's list is v0.7.0's.
+    const HI04 = ["/leads/home-insight", "/", "/today", "/team/realtor-prospects", "/team/performance", "/agent/sponsored"];
     for (const app of APP_SLUGS) {
       if ((THREE as readonly string[]).includes(app)) continue;
-      expect([ROUTES[app].length, h16(ROUTES[app])], app).toEqual([...V070[app]]);
+      const list = app === "rello" ? ROUTES[app].filter((t) => !HI04.includes(t)) : ROUTES[app];
+      expect([list.length, h16(list)], app).toEqual([...V070[app]]);
     }
   });
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.9.0 — 2026-11-28 (HOME INSIGHT HI-04: six Rello screen names, spec RELLO-HOME-INSIGHT §9 HI-04, seam X-29)
+
+Registry only. `ROUTES.rello` gains the six screen names Rello will send as `screen.opened` for Home Insight (HI-52,
+HI-57, HI-61), so the intake stores them instead of refusing them as unregistered:
+
+- `/` (the dashboard) and `/today`.
+- `/leads/home-insight`, `/team/realtor-prospects` and `/team/performance`. Team and Leads switch tabs with `?tab=`
+  (Rello `team/page.tsx:21,41`), and a query is never a route, so each Home Insight tab gets its own name.
+- `/agent/sponsored`, sent only after Rello's server confirms the viewer holds an ACTIVE `HomeInsightSponsorship`
+  (H-8). `/agent` itself stays unregistered.
+
+Five are appended after the v0.8.0 list. **`/leads/home-insight` goes just before `/leads/[id]`, not at the end**: both
+matchers return the first template that matches, so after `/leads/[id]` it could never match itself
+(`tests/registry-rello-s10.test.ts` checks that for every app). A lead id is a cuid, never this word, so no lead page
+is renamed. This is the one v0.8.0 position that moves: every v0.8.0 entry keeps its relative order.
+
+- **Unchanged:** every other app's `ROUTES`, every app's `FEATURES` (both pinned by hash in the new test), the event
+  schemas, the page script (`dist/script/s.js`, same bytes), the server helper, the redirect and the ads loader.
+- **Side effect, by design of a per-app list:** an `in_app` browser path of `/` or `/today` on Rello is now stored as
+  that template instead of with no path (`tracking_path_unregistered`).
+- Tests: `tests/registry-rello-home-insight-v090.test.ts` (new). Three older pins now take the six names out before
+  comparing: `registry-rello-s9` (its v0.1.x + S10 + S9 order), `registry-rello-s10` (the length, 16 → 22) and
+  `registry-spokes-s10-v080` (rello's v0.7.0 hash).
+
 ## v0.8.0 — 2026-11-25 (S10 prep for U16–U18: spoke page templates, Platform KA prompt 2022; ruling KA 2020)
 
 Registry only. `ROUTES` gains the page templates the S10 spoke tags will send on `spoke_public`, so a `page.view` from
